@@ -13,10 +13,12 @@ const BANCO_COLORS = {
   'Alpina Bancolombia':    { color: '#ffd166', bg: 'rgba(255,209,102,0.12)', emoji: '🏧' },
   'Buzón':                 { color: '#00e5a0', bg: 'rgba(0,229,160,0.15)',   emoji: '📬' },
   'Servicios Nutresa Cárnicos': { color: '#9b5cff', bg: 'rgba(155,92,255,0.15)', emoji: '🥩' },
+  'Gasto':                 { color: '#ff9f1c', bg: 'rgba(255,159,28,0.15)',  emoji: '💸' },
+  'Retención':             { color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', emoji: '📄' },
 };
 
 const ESTADOS = ['Pendiente', 'Validado', 'Rechazado'];
-const BANCOS = ['Bancolombia 6061', 'Davivienda 8703', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Servicios Nutresa Cárnicos'];
+const BANCOS = ['Bancolombia 6061', 'Davivienda 8703', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
 
 const CajeraPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
@@ -24,6 +26,7 @@ const CajeraPanel = ({ user }) => {
   const [bancoFilter, setBancoFilter]   = useState('');
   const [estadoFilter, setEstadoFilter] = useState('Pendiente');
   const [search, setSearch]             = useState('');
+  const [dateRange, setDateRange]       = useState({ start: '', end: '' });
   const [selected, setSelected]         = useState(null);
   const [showFilters, setShowFilters]   = useState(false);
 
@@ -58,8 +61,17 @@ const CajeraPanel = ({ user }) => {
   const filtered = consignaciones.filter(c => {
     const okBanco   = bancoFilter  ? c.banco === bancoFilter : true;
     const okEstado  = estadoFilter ? c.estado === estadoFilter : true;
-    const okSearch  = search ? c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || c.numero_comprobante.includes(search) : true;
-    return okBanco && okEstado && okSearch;
+    const okSearch  = search ? (
+      c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || 
+      c.numero_comprobante.includes(search)
+    ) : true;
+    
+    // Filtro por fecha
+    const cDate = new Date(c.fecha);
+    const okStart = dateRange.start ? cDate >= new Date(dateRange.start) : true;
+    const okEnd   = dateRange.end   ? cDate <= new Date(dateRange.end + 'T23:59:59') : true;
+    
+    return okBanco && okEstado && okSearch && okStart && okEnd;
   });
 
   const pendientes = consignaciones.filter(c => c.estado === 'Pendiente').length;
@@ -111,11 +123,54 @@ const CajeraPanel = ({ user }) => {
 
       {/* Banco filters (collapsible) */}
       {showFilters && (
-        <div className="chip-row" style={{ marginTop: '0.5rem' }}>
-          <button className={`chip ${bancoFilter === '' ? 'active' : ''}`} onClick={() => setBancoFilter('')}>Todos los bancos</button>
-          {BANCOS.map(b => (
-            <button key={b} className={`chip ${bancoFilter === b ? 'active' : ''}`} onClick={() => setBancoFilter(b)}>{b}</button>
-          ))}
+        <div className="card animate-in" style={{ padding: '1rem', marginBottom: '1rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            {/* Fechas */}
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.7rem' }}>Desde</label>
+              <input 
+                type="date" 
+                className="form-control" 
+                value={dateRange.start} 
+                onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))} 
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.7rem' }}>Hasta</label>
+              <input 
+                type="date" 
+                className="form-control" 
+                value={dateRange.end} 
+                onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} 
+              />
+            </div>
+            {/* Bancos */}
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.7rem' }}>Banco</label>
+              <select 
+                className="form-control" 
+                value={bancoFilter} 
+                onChange={e => setBancoFilter(e.target.value)}
+              >
+                <option value="">Todos los bancos</option>
+                {BANCOS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+            {/* Reset */}
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button 
+                className="btn btn-ghost w-full" 
+                style={{ fontSize: '0.75rem' }}
+                onClick={() => {
+                  setBancoFilter('');
+                  setDateRange({ start: '', end: '' });
+                  setSearch('');
+                }}
+              >
+                Limpiar Filtros
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

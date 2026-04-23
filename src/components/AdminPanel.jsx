@@ -19,11 +19,16 @@ const BANCO_COLORS = {
   'Alpina Bancolombia': '#ffd166',
   'Buzón': '#00e5a0',
   'Servicios Nutresa Cárnicos': '#9b5cff',
+  'Gasto': '#ff9f1c',
+  'Retención': '#94a3b8',
 };
 
 const AdminPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch]   = useState('');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -96,17 +101,30 @@ const AdminPanel = ({ user }) => {
     }
   };
 
-  const totalValidado = consignaciones.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
-  const pendientesCount = consignaciones.filter(c => c.estado === 'Pendiente').length;
-  const rechazados = consignaciones.filter(c => c.estado === 'Rechazado').length;
+  const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-valid' : 'badge-rejected';
 
-  const byBank = consignaciones.filter(c => c.estado === 'Validado').reduce((acc, c) => {
+  const filtered = consignaciones.filter(c => {
+    const okSearch = search ? (
+      c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) ||
+      c.numero_comprobante.includes(search)
+    ) : true;
+    
+    const cDate = new Date(c.fecha);
+    const okStart = dateRange.start ? cDate >= new Date(dateRange.start) : true;
+    const okEnd   = dateRange.end   ? cDate <= new Date(dateRange.end + 'T23:59:59') : true;
+    
+    return okSearch && okStart && okEnd;
+  });
+
+  const totalValidado = filtered.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
+  const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
+  const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
+
+  const byBank = filtered.filter(c => c.estado === 'Validado').reduce((acc, c) => {
     acc[c.banco] = (acc[c.banco] || 0) + c.valor;
     return acc;
   }, {});
   const topBank = Object.entries(byBank).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
-
-  const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-valid' : 'badge-rejected';
 
   const STATS = [
     {
@@ -141,6 +159,61 @@ const AdminPanel = ({ user }) => {
 
   return (
     <div className="page animate-in">
+      {/* Filters & Search Bar */}
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center' }}>
+        <div className="search-wrap" style={{ flex: 1, margin: 0 }}>
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            className="form-control"
+            style={{ paddingLeft: '2.5rem' }}
+            placeholder="Buscar por auxiliar o número de comprobante..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <button 
+          className="btn btn-ghost" 
+          onClick={() => setShowFilters(!showFilters)}
+          style={{ height: '42px', gap: '0.5rem', ...(showFilters ? { color: 'var(--neon-blue)', borderColor: 'var(--neon-blue)' } : {}) }}
+        >
+          <Filter size={16} /> {showFilters ? 'Ocultar Filtros' : 'Filtros'}
+        </button>
+      </div>
+
+      {showFilters && (
+        <div className="card animate-in" style={{ padding: '1.25rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.02)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Desde la fecha</label>
+              <input 
+                type="date" 
+                className="form-control" 
+                value={dateRange.start} 
+                onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))} 
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Hasta la fecha</label>
+              <input 
+                type="date" 
+                className="form-control" 
+                value={dateRange.end} 
+                onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} 
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button 
+                className="btn btn-ghost w-full" 
+                onClick={() => { setSearch(''); setDateRange({ start: '', end: '' }); }}
+              >
+                Limpiar Búsqueda
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="hero-card" style={{ background: 'linear-gradient(135deg, #9b5cff 0%, #4f8eff 100%)', boxShadow: 'var(--shadow-glow-purple)' }}>
         <div className="hero-label">🛡️ Panel Administrativo</div>
@@ -182,17 +255,18 @@ const AdminPanel = ({ user }) => {
             className="btn btn-success w-full"
             style={{ padding: '1.25rem', fontSize: '1rem' }}
             onClick={exportToExcel}
-            disabled={loading || consignaciones.length === 0}
+            disabled={loading || filtered.length === 0}
           >
             <Download size={20} />
-            Descargar Reporte Consolidado
+            Descargar Respaldo Completo (ZIP)
           </button>
         </div>
       </div>
 
       {/* Transactions list */}
       <div className="section-header">
-        <span className="section-title">Últimas Transacciones</span>
+        <span className="section-title">Resultados ({filtered.length})</span>
+        <span className="text-muted text-xs">Filtros aplicados</span>
       </div>
 
       <div className="card">
@@ -200,20 +274,20 @@ const AdminPanel = ({ user }) => {
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
             <div className="spinner" />
           </div>
-        ) : consignaciones.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-2)' }}>
             <AlertCircle size={32} style={{ marginBottom: '0.75rem', opacity: 0.4 }} />
-            <p>Sin registros aún</p>
+            <p>No se encontraron registros con estos filtros</p>
           </div>
         ) : (
-          consignaciones.slice(0, 20).map(c => (
+          filtered.slice(0, 50).map(c => (
             <div key={c.id} className="consign-item">
               <div className="consign-icon" style={{ background: `${BANCO_COLORS[c.banco] || '#4f8eff'}18` }}>
                 <Building2 size={18} color={BANCO_COLORS[c.banco] || 'var(--neon-blue)'} />
               </div>
               <div className="consign-info">
                 <div className="consign-name">{c.auxiliar_name}</div>
-                <div className="consign-meta">{c.banco} · {format(new Date(c.fecha), "d MMM", { locale: es })}</div>
+                <div className="consign-meta">{c.banco} · {format(new Date(c.fecha), "d MMM, h:mm a", { locale: es })}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
                 <span className="consign-amount">{money(c.valor)}</span>

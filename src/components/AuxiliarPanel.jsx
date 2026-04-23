@@ -58,6 +58,24 @@ const BANCOS_PRIMARY = [
     emoji: '🥩',
     value: 'Servicios Nutresa Cárnicos',
   },
+  {
+    id: 'gasto',
+    label: 'Gasto',
+    sub: 'Legalización gasto',
+    color: '#ff9f1c',
+    bg: 'rgba(255,159,28,0.12)',
+    emoji: '💸',
+    value: 'Gasto',
+  },
+  {
+    id: 'retencion',
+    label: 'Retención',
+    sub: 'Legalización ret.',
+    color: '#94a3b8',
+    bg: 'rgba(148,163,184,0.12)',
+    emoji: '📄',
+    value: 'Retención',
+  },
 ];
 
 // ─── Componente ─────────────────────────────────────────────────────────────
