@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter } from 'lucide-react';
 import { mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
