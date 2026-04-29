@@ -92,6 +92,13 @@ const AuxiliarPanel = ({ user }) => {
   const [history, setHistory]     = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
+  // VERIFICAR DUPLICADOS
+  const checkDuplicate = async (numero_comprobante, valor) => {
+    console.log("Validando duplicidad para:", { numero_comprobante, valor });
+    const isDuplicate = await mockDB.checkDuplicate(numero_comprobante, valor);
+    return isDuplicate;
+  };
+
   const fetchHistory = async () => {
     try {
       const data = await mockDB.getConsignaciones();
@@ -168,35 +175,86 @@ const AuxiliarPanel = ({ user }) => {
     setShowSub(false);
   };
 
+  const [modal, setModal] = useState(null); // { title, message, icon, color }
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    console.log("Submit iniciado", { banco, valor, numero, hasFile: !!file });
+
     if (!banco || !valor || !numero || !file) {
-      toast.error('Completa todos los campos');
+      const missing = [];
+      if (!banco) missing.push("Banco");
+      if (!valor) missing.push("Valor");
+      if (!numero) missing.push("Número");
+      if (!file) missing.push("Foto/PDF");
+      
+      setModal({
+        title: 'Faltan Datos',
+        message: 'Por favor completa: ' + missing.join(', '),
+        icon: '📝',
+        color: 'var(--neon-yellow)'
+      });
       return;
     }
+
+    const valorNumerico = parseInt(valor.replace(/\./g, ''), 10);
+    if (isNaN(valorNumerico)) {
+      setModal({
+        title: 'Valor Inválido',
+        message: 'El valor ingresado no es un número válido.',
+        icon: '❌',
+        color: 'var(--neon-red)'
+      });
+      return;
+    }
+    
     setLoading(true);
-    const tid = toast.loading('Guardando consignación...');
+    const tid = toast.loading('Verificando datos...');
+
     try {
-      // 1. Subir archivo real a Supabase Storage
+      // 1. Verificar duplicados
+      console.log("Verificando duplicados...");
+      const isDuplicate = await mockDB.checkDuplicate(numero, valorNumerico);
+      
+      if (isDuplicate) {
+        console.warn("¡Registro duplicado detectado!");
+        toast.dismiss(tid);
+        setModal({
+          title: '¡ATENCIÓN!',
+          message: 'Este número de comprobante y valor ya fueron registrados anteriormente.\nNo se puede guardar duplicado.',
+          icon: '⚠️',
+          color: 'var(--neon-red)'
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Subir archivo
+      console.log("Subiendo archivo...");
+      toast.loading('Subiendo comprobante...', { id: tid });
       const publicUrl = await mockDB.uploadFile(file);
       
-      // 2. Guardar registro en la DB con la URL real
+      // 3. Guardar registro
+      console.log("Guardando en DB...");
+      toast.loading('Guardando consignación...', { id: tid });
       await mockDB.addConsignacion({
         banco,
-        valor: parseInt(valor.replace(/\./g, ''), 10),
+        valor: valorNumerico,
         numero_comprobante: numero,
-        file_url: publicUrl, // URL real y persistente
+        file_url: publicUrl,
         auxiliar_id: user.id,
         auxiliar_name: user.full_name,
       });
-      toast.success('¡Consignación registrada! 🎉', { id: tid });
+
+      toast.success('¡Consignación registrada correctamente! 🎉', { id: tid });
       setSuccess(true);
     } catch (err) {
-      console.error("Error al subir/guardar:", err);
-      toast.error('Error al guardar: ' + (err.message || 'Error desconocido'), { id: tid });
+      console.error("Error detallado:", err);
+      toast.dismiss(tid);
+      toast.error('❌ Error: ' + (err.message || 'No se pudo guardar la consignación'));
     } finally {
       setLoading(false);
-      fetchHistory(); // Recargar historial tras guardar
+      fetchHistory();
     }
   };
 
@@ -423,10 +481,11 @@ const AuxiliarPanel = ({ user }) => {
         </div>
 
         <button
-          type="submit"
+          type="button"
+          onClick={handleSubmit}
           className="btn btn-primary w-full"
           style={{ padding: '1rem', fontSize: '1rem', marginTop: '0.5rem' }}
-          disabled={loading || compressing || !file || !banco}
+          disabled={loading || compressing}
         >
           {loading
             ? <><div className="spinner" /> Guardando...</>
@@ -496,6 +555,45 @@ const AuxiliarPanel = ({ user }) => {
           </div>
         )}
       </div>
+
+      {/* ── MODAL PERSONALIZADO ── */}
+      {modal && (
+        <div className="modal-overlay" style={{ alignItems: 'center', padding: '1.5rem' }}>
+          <div className="card animate-in" style={{ 
+            maxWidth: '380px', 
+            width: '100%', 
+            textAlign: 'center', 
+            padding: '2rem',
+            background: 'rgba(20, 20, 35, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${modal.color}33`,
+            boxShadow: `0 20px 50px -10px rgba(0,0,0,0.5), 0 0 20px ${modal.color}11`
+          }}>
+            <div style={{ 
+              fontSize: '3rem', 
+              marginBottom: '1rem',
+              filter: `drop-shadow(0 0 10px ${modal.color}44)`
+            }}>
+              {modal.icon}
+            </div>
+            <h2 style={{ color: modal.color, marginBottom: '0.75rem', fontSize: '1.4rem' }}>{modal.title}</h2>
+            <p style={{ color: 'var(--text-1)', marginBottom: '1.5rem', whiteSpace: 'pre-line', fontSize: '0.95rem' }}>
+              {modal.message}
+            </p>
+            <button 
+              className="btn w-full" 
+              onClick={() => setModal(null)}
+              style={{ 
+                background: modal.color, 
+                color: '#000',
+                boxShadow: `0 0 20px ${modal.color}44`
+              }}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

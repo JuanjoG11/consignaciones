@@ -138,22 +138,22 @@ export const mockDB = {
     return data.map(c => ({ ...c, fecha: c.created_at }));
   },
 
-  // AGREGAR CONSIGNACIÓN (REAL + VERIFICACIÓN DE DUPLICADOS)
-  addConsignacion: async (formData) => {
-    // 0. Verificar si ya existe un registro con el mismo número de comprobante y valor
-    const { data: existing, error: checkError } = await supabase
+  // VERIFICAR DUPLICADOS
+  checkDuplicate: async (numero_comprobante, valor) => {
+    const { data, error } = await supabase
       .from('consignaciones')
       .select('id')
-      .eq('numero_comprobante', formData.numero_comprobante)
-      .eq('valor', formData.valor)
+      .eq('numero_comprobante', numero_comprobante)
+      .eq('valor', valor)
       .maybeSingle();
+    
+    if (error) throw error;
+    return !!data; // true si existe, false si no
+  },
 
-    if (checkError) throw checkError;
-    if (existing) {
-      throw new Error('Este comprobante con este valor ya fue registrado anteriormente.');
-    }
-
-    // 1. Subir imagen al Storage si es necesario...
+  // AGREGAR CONSIGNACIÓN (REAL)
+  addConsignacion: async (formData) => {
+    // 1. Insertar directamente (el check se hace antes en la UI para mejor UX)
     const { data, error } = await supabase
       .from('consignaciones')
       .insert([{
