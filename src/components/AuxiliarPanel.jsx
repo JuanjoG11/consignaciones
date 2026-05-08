@@ -92,10 +92,10 @@ const AuxiliarPanel = ({ user }) => {
   const [history, setHistory]     = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
-  // VERIFICAR DUPLICADOS
-  const checkDuplicate = async (numero_comprobante, valor) => {
-    console.log("Validando duplicidad para:", { numero_comprobante, valor });
-    const isDuplicate = await mockDB.checkDuplicate(numero_comprobante, valor);
+  // VERIFICAR DUPLICADOS (solo por número de comprobante)
+  const checkDuplicate = async (numero_comprobante) => {
+    console.log("Validando duplicidad para:", { numero_comprobante });
+    const isDuplicate = await mockDB.checkDuplicate(numero_comprobante);
     return isDuplicate;
   };
 
@@ -212,16 +212,16 @@ const AuxiliarPanel = ({ user }) => {
     const tid = toast.loading('Verificando datos...');
 
     try {
-      // 1. Verificar duplicados
+      // 1. Verificar duplicados (solo por número de comprobante)
       console.log("Verificando duplicados...");
-      const isDuplicate = await mockDB.checkDuplicate(numero, valorNumerico);
+      const isDuplicate = await mockDB.checkDuplicate(numero);
       
       if (isDuplicate) {
-        console.warn("¡Registro duplicado detectado!");
+        console.warn("¡Número de comprobante duplicado detectado!");
         toast.dismiss(tid);
         setModal({
-          title: '¡ATENCIÓN!',
-          message: 'Este número de comprobante y valor ya fueron registrados anteriormente.\nNo se puede guardar duplicado.',
+          title: '¡Comprobante Repetido!',
+          message: `El número de comprobante "${numero}" ya fue registrado anteriormente.\nUsa un número de comprobante diferente.`,
           icon: '⚠️',
           color: 'var(--neon-red)'
         });

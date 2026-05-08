@@ -88,8 +88,8 @@ export const mockAuth = {
     if (error) {
       console.warn('Auth real falló, usando lógica de prueba:', error.message);
       const mockUsers = [
-        { id: '2', email: 'cajera@test.com', role: 'cajera',  full_name: 'Carmen Cajera', password: '123' },
-        { id: '3', email: 'admin@test.com',  role: 'admin',   full_name: 'Admin Jefe',    password: '123' },
+        { id: '2', email: 'tesoreria@consigcontrol.com', role: 'cajera',  full_name: 'Control de Tesorería', password: '123' },
+        { id: '3', email: 'gerencia@consigcontrol.com',  role: 'admin',   full_name: 'Dirección Operativa',    password: '123' },
       ];
       const found = mockUsers.find(u => u.email === email && u.password === password);
       if (found) {
@@ -139,16 +139,17 @@ export const mockDB = {
   },
 
   // VERIFICAR DUPLICADOS
-  checkDuplicate: async (numero_comprobante, valor) => {
+  // Solo bloquea si el número de comprobante ya existe (sin importar el valor).
+  // Mismo valor con diferente número de comprobante → se PERMITE.
+  checkDuplicate: async (numero_comprobante) => {
     const { data, error } = await supabase
       .from('consignaciones')
       .select('id')
       .eq('numero_comprobante', numero_comprobante)
-      .eq('valor', valor)
       .maybeSingle();
     
     if (error) throw error;
-    return !!data; // true si existe, false si no
+    return !!data; // true si el número ya existe, false si es nuevo
   },
 
   // AGREGAR CONSIGNACIÓN (REAL)

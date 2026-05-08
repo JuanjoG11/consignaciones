@@ -30,13 +30,17 @@ const AdminPanel = ({ user }) => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showFilters, setShowFilters] = useState(false);
 
+  const fetchConsignaciones = async (silent = false) => {
+    if (!silent) setLoading(true);
+    const data = await mockDB.getConsignaciones();
+    setConsignaciones(data);
+    if (!silent) setLoading(false);
+  };
+
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const data = await mockDB.getConsignaciones();
-      setConsignaciones(data);
-      setLoading(false);
-    })();
+    fetchConsignaciones();
+    const interval = setInterval(() => fetchConsignaciones(true), 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const exportToExcel = async () => {
@@ -281,18 +285,61 @@ const AdminPanel = ({ user }) => {
           </div>
         ) : (
           filtered.slice(0, 50).map(c => (
-            <div key={c.id} className="consign-item">
-              <div className="consign-icon" style={{ background: `${BANCO_COLORS[c.banco] || '#4f8eff'}18` }}>
-                <Building2 size={18} color={BANCO_COLORS[c.banco] || 'var(--neon-blue)'} />
+            <div key={c.id} className="consign-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div className="consign-icon" style={{ background: `${BANCO_COLORS[c.banco] || '#4f8eff'}18`, flexShrink: 0 }}>
+                  <Building2 size={18} color={BANCO_COLORS[c.banco] || 'var(--neon-blue)'} />
+                </div>
+                <div className="consign-info" style={{ flex: 1 }}>
+                  <div className="consign-name">{c.auxiliar_name}</div>
+                  <div className="consign-meta">{c.banco} · #{c.numero_comprobante} · {format(new Date(c.fecha), "d MMM, h:mm a", { locale: es })}</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
+                  <span className="consign-amount">{money(c.valor)}</span>
+                  <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
+                  {c.motivo_rechazo && (
+                    <span style={{ fontSize: '0.62rem', color: 'var(--neon-red)', maxWidth: 120, textAlign: 'right' }}>{c.motivo_rechazo}</span>
+                  )}
+                </div>
               </div>
-              <div className="consign-info">
-                <div className="consign-name">{c.auxiliar_name}</div>
-                <div className="consign-meta">{c.banco} · {format(new Date(c.fecha), "d MMM, h:mm a", { locale: es })}</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
-                <span className="consign-amount">{money(c.valor)}</span>
-                <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
-              </div>
+              {/* Imagen del comprobante */}
+              {c.file_url && (
+                c.file_url.includes('pdf') ? (
+                  <a
+                    href={c.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                      padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(79,142,255,0.1)', border: '1px solid rgba(79,142,255,0.25)',
+                      color: 'var(--neon-blue)', fontSize: '0.75rem', fontWeight: 700,
+                      textDecoration: 'none', width: 'fit-content'
+                    }}
+                  >
+                    📄 Ver PDF del comprobante
+                  </a>
+                ) : (
+                  <a href={c.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                    <img
+                      src={c.file_url}
+                      alt="Comprobante"
+                      style={{
+                        width: '100%',
+                        maxHeight: '220px',
+                        objectFit: 'contain',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border)',
+                        background: '#000',
+                        cursor: 'zoom-in'
+                      }}
+                    />
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', display: 'block' }}>
+                      🔍 Clic para ver en tamaño completo
+                    </span>
+                  </a>
+                )
+              )}
             </div>
           ))
         )}
