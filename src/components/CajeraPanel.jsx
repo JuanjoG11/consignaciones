@@ -259,13 +259,15 @@ const CajeraPanel = ({ user }) => {
                     </div>
                   )}
 
-                  {selected.estado === 'Pendiente' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: 'auto' }}>
-                      <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: '1rem' }}>
-                        <XCircle size={18} /> Rechazar Consignación
-                      </button>
+                  {(selected.estado === 'Pendiente' || selected.estado === 'Rechazado') && (
+                    <div style={{ display: 'grid', gridTemplateColumns: selected.estado === 'Rechazado' ? '1fr' : '1fr 1fr', gap: '1rem', marginTop: 'auto' }}>
+                      {selected.estado === 'Pendiente' && (
+                        <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: '1rem' }}>
+                          <XCircle size={18} /> Rechazar Consignación
+                        </button>
+                      )}
                       <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')} style={{ padding: '1rem' }}>
-                        <CheckCircle size={18} /> Validar y Aprobar
+                        <CheckCircle size={18} /> {selected.estado === 'Rechazado' ? 'Corregir y Aprobar' : 'Validar y Aprobar'}
                       </button>
                     </div>
                   )}
@@ -338,10 +340,16 @@ const CajeraPanel = ({ user }) => {
                     <img src={selected.file_url} style={{ width: '100%', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '1rem' }}>
-                    <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')}>Rechazar</button>
-                    <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')}>Validar</button>
-                  </div>
+                  {(selected.estado === 'Pendiente' || selected.estado === 'Rechazado') && (
+                    <div style={{ display: 'grid', gridTemplateColumns: selected.estado === 'Rechazado' ? '1fr' : '1fr 1fr', gap: '0.75rem', marginTop: '1rem' }}>
+                      {selected.estado === 'Pendiente' && (
+                        <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')}>Rechazar</button>
+                      )}
+                      <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')}>
+                        {selected.estado === 'Rechazado' ? 'Corregir y Aprobar' : 'Validar'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

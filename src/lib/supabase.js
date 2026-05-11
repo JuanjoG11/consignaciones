@@ -83,18 +83,22 @@ export const mockAuth = {
     }
 
     // ── LOGIN CAJERA / ADMIN POR EMAIL + CONTRASEÑA ──────────────────────────
+    // ── LOGIN CAJERA / ADMIN POR EMAIL + CONTRASEÑA ──────────────────────────
+    // Intentamos login real primero
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      console.warn('Auth real falló, usando lógica de prueba:', error.message);
-      const mockUsers = [
-        { id: '2', email: 'tesoreria@consigcontrol.com', role: 'cajera',  full_name: 'Control de Tesorería', password: '123' },
-        { id: '3', email: 'gerencia@consigcontrol.com',  role: 'admin',   full_name: 'Dirección Operativa',    password: '123' },
+      // Si el login real falla (o Supabase está caído), usamos estos usuarios de producción:
+      const productionUsers = [
+        { id: 'teso-1', email: 'tesoreria@consigcontrol.com', role: 'cajera', full_name: 'Control de Tesorería', pass: 'Control*2026T' },
+        { id: 'admin-1', email: 'gerencia@consigcontrol.com', role: 'admin',  full_name: 'Dirección Operativa',  pass: 'Control*2026G' },
       ];
-      const found = mockUsers.find(u => u.email === email && u.password === password);
+
+      const found = productionUsers.find(u => u.email === email && u.pass === password);
       if (found) {
-        localStorage.setItem('consignaciones_user', JSON.stringify(found));
-        return { user: found, error: null };
+        const { pass, ...userSession } = found; // No guardamos la pass en el estado
+        localStorage.setItem('consignaciones_user', JSON.stringify(userSession));
+        return { user: userSession, error: null };
       }
       return { user: null, error: { message: 'Credenciales inválidas' } };
     }
@@ -106,6 +110,7 @@ export const mockAuth = {
       role,
       full_name: data.user.user_metadata?.full_name || email.split('@')[0],
     };
+
     localStorage.setItem('consignaciones_user', JSON.stringify(user));
     return { user, error: null };
   },
@@ -175,7 +180,13 @@ export const mockDB = {
   // ACTUALIZAR ESTADO (REAL)
   updateConsignacionStatus: async (id, estado, motivo = null) => {
     const updateData = { estado };
-    if (motivo) updateData.motivo_rechazo = motivo;
+    
+    // Si se está validando, nos aseguramos de limpiar cualquier motivo de rechazo previo
+    if (estado === 'Validado') {
+      updateData.motivo_rechazo = null;
+    } else if (motivo) {
+      updateData.motivo_rechazo = motivo;
+    }
 
     const { error } = await supabase
       .from('consignaciones')
