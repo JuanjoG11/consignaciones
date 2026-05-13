@@ -7,6 +7,8 @@ import { mockAuth } from './lib/supabase';
 import { LogOut, ShieldCheck, LayoutDashboard, ClipboardCheck, BarChart3, PlusCircle, User } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 
+import ReloadPrompt from './components/ReloadPrompt';
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,12 @@ function App() {
     </div>
   );
 
-  if (!user) return <Login onLogin={handleLogin} />;
+  if (!user) return (
+    <>
+      <Login onLogin={handleLogin} />
+      <ReloadPrompt />
+    </>
+  );
 
   const roleLabel = { auxiliar: 'Auxiliar', cajera: 'Cajera', admin: 'Admin' }[user.role];
   const roleColor = { auxiliar: 'var(--neon-blue)', cajera: 'var(--neon-green)', admin: 'var(--neon-purple)' }[user.role];
@@ -55,12 +62,14 @@ function App() {
         }}
       />
 
+      <ReloadPrompt />
+
       {/* Top Bar */}
       <header className="topbar">
         <div className="topbar-content">
           <div className="topbar-brand">
-            <div className="topbar-logo">
-              <ShieldCheck size={20} color="white" />
+            <div className="topbar-logo" style={{ overflow: 'hidden', padding: 0 }}>
+              <img src="/pwa-192x192.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <span className="topbar-name">ConsigControl</span>
           </div>
