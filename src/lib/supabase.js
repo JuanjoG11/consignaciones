@@ -16,6 +16,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 export const AUXILIARES = [
   { cedula: '1002730727', nombre: 'JHON WILSON GIRALDO CARVAJAL' },
   { cedula: '10138323',   nombre: 'ROVINSON TORRES RIVERA' },
+  { cedula: '1004545355', nombre: 'YEISON LEANDRO TABARES CALLE' },
   { cedula: '9910933',    nombre: 'ARBEY DE JESUS LARGO LARGO' },
   { cedula: '10033035',   nombre: 'CESAR AUGUSTO CASTILLO LONDOÑO' },
   { cedula: '1060652216', nombre: 'CRISTIAN CAMILO OSPINA PARRA' },
@@ -34,7 +35,6 @@ export const AUXILIARES = [
   { cedula: '1007783801', nombre: 'YEISON DAVID RENDON SOTO' },
   { cedula: '1088334475', nombre: 'SEBASTIAN VILLADA VELASQUEZ' },
   { cedula: '1127384755', nombre: 'CAMILO ANDRES CONTRERAS RIVAS' },
-  { cedula: '4512871',    nombre: 'ARNULFO STERLING PELAEZ' },
   { cedula: '1088308341', nombre: 'JUAN DAVID QUINTERO GRAJALES' },
   { cedula: '1123141444', nombre: 'CRISTIAN FABIAN CAMACHO MARTINEZ' },
   { cedula: '1038926903', nombre: 'DIORLAN ANTONIO MESA FLOREZ' },
@@ -58,6 +58,7 @@ export const AUXILIARES = [
   { cedula: '9862197',    nombre: 'GUSTAVO ADOLFO MORALES TIRADO' },
   { cedula: '1006296150', nombre: 'JHONATAN MENA GALLEGO' },
   { cedula: '10005257',   nombre: 'OSCAR MAURICIO GUARUMO CLAVIJO' },
+  { cedula: '1004701171', nombre: 'JUAN SEBASTIAN TAMAYO PULGARIN' },
 ];
 
 export const mockAuth = {

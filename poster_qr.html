@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poster ConsigControl QR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060612;
+            --primary: #4f8eff;
+            --accent: #9b5cff;
+            --text: #ffffff;
+            --text-dim: #8888aa;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px;
+        }
+
+        .poster {
+            width: 210mm;
+            height: 297mm; /* A4 size */
+            background: var(--bg);
+            background-image: 
+                radial-gradient(circle at 0% 0%, rgba(79, 142, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(155, 92, 255, 0.15) 0%, transparent 50%);
+            color: var(--text);
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 20px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header {
+            text-align: center;
+        }
+
+        .logo-wrap {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            box-shadow: 0 15px 30px rgba(79, 142, 255, 0.3);
+        }
+
+        .logo-wrap img {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
+        }
+
+        h1 {
+            font-size: 64px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 24px;
+            color: var(--primary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .qr-section {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 40px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .qr-container {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .qr-container img {
+            display: block;
+            width: 250px;
+            height: 250px;
+        }
+
+        .instructions {
+            font-size: 28px;
+            font-weight: 600;
+            max-width: 400px;
+            line-height: 1.4;
+        }
+
+        .url {
+            font-size: 18px;
+            color: var(--text-dim);
+            font-family: monospace;
+        }
+
+        .footer {
+            text-align: center;
+            width: 100%;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 40px;
+        }
+
+        .company-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(79, 142, 255, 0.1);
+            border: 1px solid rgba(79, 142, 255, 0.3);
+            color: var(--primary);
+            padding: 8px 20px;
+            border-radius: 99px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Decorative elements */
+        .blob {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: var(--primary);
+            filter: blur(100px);
+            opacity: 0.1;
+            z-index: 0;
+            border-radius: 50%;
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .poster { box-shadow: none; border: none; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="blob" style="top: -100px; left: -100px;"></div>
+        <div class="blob" style="bottom: -100px; right: -100px; background: var(--accent);"></div>
+
+        <div class="header">
+            <div class="logo-wrap">
+                <!-- Usando el icono del escudo como base -->
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </div>
+            <h1>ConsigControl</h1>
+            <div class="subtitle">Validación en Tiempo Real</div>
+        </div>
+
+        <div class="qr-section">
+            <div class="instructions">Escanea el código para registrar tu consignación</div>
+            <div class="qr-container">
+                <!-- Generado dinámicamente con api.qrserver.com -->
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://consigcontrol.tiendasymarcaseje.com/&color=060612&margin=10" alt="QR Code">
+            </div>
+            <div class="url">consigcontrol.tiendasymarcaseje.com</div>
+        </div>
+
+        <div class="footer">
+            <div class="company-name">Tiendas y Marcas Eje</div>
+            <div class="badge">Uso Exclusivo para Personal Autorizado</div>
+        </div>
+    </div>
+</body>
+</html>
