@@ -252,6 +252,7 @@ const AuxiliarPanel = ({ user }) => {
         file_url: publicUrl,
         auxiliar_id: user.id,
         auxiliar_name: user.full_name,
+        empresa: user.empresa || 'GENERAL',
       });
 
       toast.success('¡Consignación registrada correctamente! 🎉', { id: tid });

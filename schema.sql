@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS public.consignaciones (
   auxiliar_id TEXT NOT NULL, -- ID del usuario que envía
   auxiliar_name TEXT NOT NULL, -- Nombre para visualización rápida
   motivo_rechazo TEXT,
-  cajera_id TEXT -- ID de la cajera que valida
+  cajera_id TEXT, -- ID de la cajera que valida
+  cajera_name TEXT, -- Nombre de la cajera que valida
+  empresa TEXT DEFAULT 'GENERAL'
 );
 
 -- Habilitar RLS (Row Level Security) - Por ahora permitimos todo para que pruebes rápido

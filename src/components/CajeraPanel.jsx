@@ -27,6 +27,7 @@ const CajeraPanel = ({ user }) => {
   const [estadoFilter, setEstadoFilter] = useState('Pendiente');
   const [search, setSearch]             = useState('');
   const [dateRange, setDateRange]       = useState({ start: '', end: '' });
+  const [empresaFilter, setEmpresaFilter] = useState('');
   const [selected, setSelected]         = useState(null);
   const [showFilters, setShowFilters]   = useState(false);
 
@@ -51,14 +52,16 @@ const CajeraPanel = ({ user }) => {
     }
     const tid = toast.loading('Actualizando...');
     try {
-      await mockDB.updateConsignacionStatus(id, estado, motivo);
+      await mockDB.updateConsignacionStatus(id, estado, motivo, user.id, user.full_name);
       toast.success(estado === 'Validado' ? '✅ Aprobada' : '❌ Rechazada', { id: tid });
       fetch(true);
       setSelected(null);
     } catch { toast.error('Error', { id: tid }); }
   };
 
-  const filtered = consignaciones.filter(c => {
+  const filtered = consignaciones
+    .filter(c => user.empresa ? c.empresa === user.empresa : true)
+    .filter(c => {
     const okBanco   = bancoFilter  ? c.banco === bancoFilter : true;
     const okEstado  = estadoFilter ? c.estado === estadoFilter : true;
     const okSearch  = search ? (
@@ -69,10 +72,18 @@ const CajeraPanel = ({ user }) => {
     // Filtro por fecha
     const cDate = new Date(c.fecha);
     const okStart = dateRange.start ? cDate >= new Date(dateRange.start) : true;
-    const okEnd   = dateRange.end   ? cDate <= new Date(dateRange.end + 'T23:59:59') : true;
+    const okEnd   = okEndFunc(cDate, dateRange.end);
+    const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
     
-    return okBanco && okEstado && okSearch && okStart && okEnd;
+    return okBanco && okEstado && okSearch && okStart && okEnd && okEmpresa;
   });
+
+  function okEndFunc(cDate, end) {
+    if (!end) return true;
+    const eDate = new Date(end);
+    eDate.setHours(23, 59, 59, 999);
+    return cDate <= eDate;
+  }
 
   const pendientes = consignaciones.filter(c => c.estado === 'Pendiente').length;
 
@@ -156,6 +167,20 @@ const CajeraPanel = ({ user }) => {
                 {BANCOS.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
+            {/* Empresa */}
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.7rem' }}>Empresa</label>
+              <select 
+                className="form-control" 
+                value={empresaFilter} 
+                onChange={e => setEmpresaFilter(e.target.value)}
+              >
+                <option value="">Todas</option>
+                <option value="ALPINA">ALPINA</option>
+                <option value="ZENU">ZENU</option>
+                <option value="GENERAL">GENERAL</option>
+              </select>
+            </div>
             {/* Reset */}
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button 
@@ -165,6 +190,7 @@ const CajeraPanel = ({ user }) => {
                   setBancoFilter('');
                   setDateRange({ start: '', end: '' });
                   setSearch('');
+                  setEmpresaFilter('');
                 }}
               >
                 Limpiar Filtros
@@ -208,7 +234,10 @@ const CajeraPanel = ({ user }) => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
                       <span className="consign-amount">{money(c.valor)}</span>
-                      <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
+                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: c.empresa === 'ALPINA' ? 'rgba(79,142,255,0.15)' : 'rgba(255,159,28,0.15)', color: c.empresa === 'ALPINA' ? 'var(--neon-blue)' : 'var(--neon-orange)', fontWeight: 800 }}>{c.empresa || 'GEN'}</span>
+                        <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
+                      </div>
                     </div>
                   </div>
                 );

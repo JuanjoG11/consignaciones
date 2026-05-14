@@ -93,8 +93,10 @@ export const mockAuth = {
     if (error) {
       // Si el login real falla (o Supabase está caído), usamos estos usuarios de producción:
       const productionUsers = [
-        { id: 'teso-1', email: 'tesoreria@consigcontrol.com', role: 'cajera', full_name: 'Control de Tesorería', pass: 'Control*2026T' },
-        { id: 'admin-1', email: 'gerencia@consigcontrol.com', role: 'admin',  full_name: 'Dirección Operativa',  pass: 'Control*2026G' },
+        { id: 'cajera-eli',  email: 'eliana@consigcontrol.com',  role: 'cajera', full_name: 'Eliana (Alpina)',  pass: 'Alpina*2026E', empresa: 'ALPINA' },
+        { id: 'cajera-nat',  email: 'nataly@consigcontrol.com',  role: 'cajera', full_name: 'Nataly (Alpina)',  pass: 'Alpina*2026N', empresa: 'ALPINA' },
+        { id: 'cajera-cris', email: 'cristina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Zenu)',  pass: 'Zenu*2026C',   empresa: 'ZENU'   },
+        { id: 'admin-1',     email: 'gerencia@consigcontrol.com', role: 'admin',  full_name: 'Dirección Operativa', pass: 'Control*2026G' },
       ];
 
       const found = productionUsers.find(u => u.email === email && u.pass === password);
@@ -172,6 +174,7 @@ export const mockDB = {
         file_url: formData.file_url,
         auxiliar_id: formData.auxiliar_id,
         auxiliar_name: formData.auxiliar_name,
+        empresa: formData.empresa || 'GENERAL',
         estado: 'Pendiente'
       }])
       .select();
@@ -181,12 +184,15 @@ export const mockDB = {
   },
 
   // ACTUALIZAR ESTADO (REAL)
-  updateConsignacionStatus: async (id, estado, motivo = null) => {
+  updateConsignacionStatus: async (id, estado, motivo = null, cajera_id = null, cajera_name = null) => {
     const updateData = { estado };
     
     // Si se está validando, nos aseguramos de limpiar cualquier motivo de rechazo previo
+    // y guardamos quién lo hizo
     if (estado === 'Validado') {
       updateData.motivo_rechazo = null;
+      if (cajera_id) updateData.cajera_id = cajera_id;
+      if (cajera_name) updateData.cajera_name = cajera_name;
     } else if (motivo) {
       updateData.motivo_rechazo = motivo;
     }
@@ -217,18 +223,5 @@ export const mockDB = {
       .getPublicUrl(filePath);
 
     return data.publicUrl;
-  },
-
-  // BORRAR TODO EL HISTORIAL (REAL)
-  clearHistory: async () => {
-    // Para borrar todo en Supabase con RLS habilitado (si no hay una política específica de delete all),
-    // a veces es necesario filtrar por algo que incluya a todos.
-    const { error } = await supabase
-      .from('consignaciones')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); 
-
-    if (error) throw error;
-    return { error: null };
   }
 };

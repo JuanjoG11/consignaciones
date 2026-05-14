@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter, Trash2 } from 'lucide-react';
+import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter } from 'lucide-react';
 import { mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -28,6 +28,7 @@ const AdminPanel = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [empresaFilter, setEmpresaFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   const fetchConsignaciones = async (silent = false) => {
@@ -105,21 +106,6 @@ const AdminPanel = ({ user }) => {
     }
   };
 
-  const handleClearHistory = async () => {
-    const confirm = window.confirm('¿Estás SEGURO de que deseas borrar TODO el historial? Esta acción no se puede deshacer y se recomienda haber descargado un respaldo primero.');
-    if (!confirm) return;
-
-    const tid = toast.loading('Borrando historial...');
-    try {
-      await mockDB.clearHistory();
-      toast.success('Historial borrado correctamente', { id: tid });
-      fetchConsignaciones();
-    } catch (err) {
-      console.error("Error al borrar historial:", err);
-      toast.error('Error al borrar historial', { id: tid });
-    }
-  };
-
   const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-valid' : 'badge-rejected';
 
   const filtered = consignaciones.filter(c => {
@@ -130,10 +116,18 @@ const AdminPanel = ({ user }) => {
     
     const cDate = new Date(c.fecha);
     const okStart = dateRange.start ? cDate >= new Date(dateRange.start) : true;
-    const okEnd   = dateRange.end   ? cDate <= new Date(dateRange.end + 'T23:59:59') : true;
+    const okEnd   = okEndFunc(cDate, dateRange.end);
+    const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
     
-    return okSearch && okStart && okEnd;
+    return okSearch && okStart && okEnd && okEmpresa;
   });
+
+  function okEndFunc(cDate, end) {
+    if (!end) return true;
+    const eDate = new Date(end);
+    eDate.setHours(23, 59, 59, 999);
+    return cDate <= eDate;
+  }
 
   const totalValidado = filtered.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
   const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
@@ -221,10 +215,23 @@ const AdminPanel = ({ user }) => {
                 onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} 
               />
             </div>
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Empresa</label>
+              <select 
+                className="form-control" 
+                value={empresaFilter} 
+                onChange={e => setEmpresaFilter(e.target.value)}
+              >
+                <option value="">Todas</option>
+                <option value="ALPINA">ALPINA</option>
+                <option value="ZENU">ZENU</option>
+                <option value="GENERAL">GENERAL</option>
+              </select>
+            </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button 
                 className="btn btn-ghost w-full" 
-                onClick={() => { setSearch(''); setDateRange({ start: '', end: '' }); }}
+                onClick={() => { setSearch(''); setDateRange({ start: '', end: '' }); setEmpresaFilter(''); }}
               >
                 Limpiar Búsqueda
               </button>
@@ -279,16 +286,6 @@ const AdminPanel = ({ user }) => {
             <Download size={20} />
             Descargar Respaldo Completo (ZIP)
           </button>
-
-          <button
-            className="btn btn-danger w-full"
-            style={{ padding: '0.75rem', fontSize: '0.85rem', background: 'rgba(255,77,109,0.1)', border: '1px solid rgba(255,77,109,0.3)', color: 'var(--neon-red)' }}
-            onClick={handleClearHistory}
-            disabled={loading || consignaciones.length === 0}
-          >
-            <Trash2 size={16} />
-            Borrar Historial
-          </button>
         </div>
       </div>
 
@@ -318,10 +315,18 @@ const AdminPanel = ({ user }) => {
                 <div className="consign-info" style={{ flex: 1 }}>
                   <div className="consign-name">{c.auxiliar_name}</div>
                   <div className="consign-meta">{c.banco} · #{c.numero_comprobante} · {format(new Date(c.fecha), "d MMM, h:mm a", { locale: es })}</div>
+                  {c.estado === 'Validado' && c.cajera_name && (
+                    <div style={{ fontSize: '0.65rem', color: 'var(--neon-green)', fontWeight: 600, marginTop: '2px' }}>
+                      Validado por: {c.cajera_name}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
                   <span className="consign-amount">{money(c.valor)}</span>
-                  <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
+                  <div style={{ display: 'flex', gap: '0.3rem' }}>
+                    <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: c.empresa === 'ALPINA' ? 'rgba(79,142,255,0.15)' : 'rgba(255,159,28,0.15)', color: c.empresa === 'ALPINA' ? 'var(--neon-blue)' : 'var(--neon-orange)', fontWeight: 800 }}>{c.empresa || 'GENERAL'}</span>
+                    <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
+                  </div>
                   {c.motivo_rechazo && (
                     <span style={{ fontSize: '0.62rem', color: 'var(--neon-red)', maxWidth: 120, textAlign: 'right' }}>{c.motivo_rechazo}</span>
                   )}
