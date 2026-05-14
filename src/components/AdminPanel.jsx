@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter } from 'lucide-react';
+import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter, LayoutGrid, List } from 'lucide-react';
 import { mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,6 +29,8 @@ const AdminPanel = ({ user }) => {
   const [search, setSearch]   = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [empresaFilter, setEmpresaFilter] = useState('');
+  const [cajeraFilter, setCajeraFilter] = useState('');
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [showFilters, setShowFilters] = useState(false);
 
   const fetchConsignaciones = async (silent = false) => {
@@ -118,8 +120,9 @@ const AdminPanel = ({ user }) => {
     const okStart = dateRange.start ? cDate >= new Date(dateRange.start) : true;
     const okEnd   = okEndFunc(cDate, dateRange.end);
     const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
+    const okCajera = cajeraFilter ? c.cajera_name === cajeraFilter : true;
     
-    return okSearch && okStart && okEnd && okEmpresa;
+    return okSearch && okStart && okEnd && okEmpresa && okCajera;
   });
 
   function okEndFunc(cDate, end) {
@@ -192,6 +195,22 @@ const AdminPanel = ({ user }) => {
         >
           <Filter size={16} /> {showFilters ? 'Ocultar Filtros' : 'Filtros'}
         </button>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', padding: '2px' }}>
+          <button 
+            className={`btn btn-icon ${viewMode === 'list' ? 'active' : ''}`} 
+            onClick={() => setViewMode('list')}
+            style={{ borderRadius: 'var(--radius-sm)', background: viewMode === 'list' ? 'var(--neon-blue)' : 'transparent', color: viewMode === 'list' ? '#000' : 'var(--text-3)' }}
+          >
+            <List size={18} />
+          </button>
+          <button 
+            className={`btn btn-icon ${viewMode === 'grid' ? 'active' : ''}`} 
+            onClick={() => setViewMode('grid')}
+            style={{ borderRadius: 'var(--radius-sm)', background: viewMode === 'grid' ? 'var(--neon-blue)' : 'transparent', color: viewMode === 'grid' ? '#000' : 'var(--text-3)' }}
+          >
+            <LayoutGrid size={18} />
+          </button>
+        </div>
       </div>
 
       {showFilters && (
@@ -228,10 +247,23 @@ const AdminPanel = ({ user }) => {
                 <option value="GENERAL">GENERAL</option>
               </select>
             </div>
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Cajera</label>
+              <select 
+                className="form-control" 
+                value={cajeraFilter} 
+                onChange={e => setCajeraFilter(e.target.value)}
+              >
+                <option value="">Todas</option>
+                {[...new Set(consignaciones.map(c => c.cajera_name).filter(Boolean))].map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button 
                 className="btn btn-ghost w-full" 
-                onClick={() => { setSearch(''); setDateRange({ start: '', end: '' }); setEmpresaFilter(''); }}
+                onClick={() => { setSearch(''); setDateRange({ start: '', end: '' }); setEmpresaFilter(''); setCajeraFilter(''); }}
               >
                 Limpiar Búsqueda
               </button>
@@ -295,83 +327,106 @@ const AdminPanel = ({ user }) => {
         <span className="text-muted text-xs">Filtros aplicados</span>
       </div>
 
-      <div className="card">
+      <div className={viewMode === 'grid' ? 'grid-view' : 'list-view'}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
             <div className="spinner" />
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-2)' }}>
+          <div className="card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-2)' }}>
             <AlertCircle size={32} style={{ marginBottom: '0.75rem', opacity: 0.4 }} />
             <p>No se encontraron registros con estos filtros</p>
           </div>
-        ) : (
-          filtered.slice(0, 50).map(c => (
-            <div key={c.id} className="consign-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div className="consign-icon" style={{ background: `${BANCO_COLORS[c.banco] || '#4f8eff'}18`, flexShrink: 0 }}>
-                  <Building2 size={18} color={BANCO_COLORS[c.banco] || 'var(--neon-blue)'} />
+        ) : viewMode === 'grid' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+            {filtered.map(c => (
+              <div key={c.id} className="card animate-in" style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ position: 'relative', height: '180px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: '#000' }}>
+                  {c.file_url ? (
+                    c.file_url.includes('pdf') ? (
+                      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neon-blue)' }}>📄 PDF</div>
+                    ) : (
+                      <img src={c.file_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )
+                  ) : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>Sin foto</div>}
+                  <a href={c.file_url} target="_blank" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2 }} />
                 </div>
-                <div className="consign-info" style={{ flex: 1 }}>
-                  <div className="consign-name">{c.auxiliar_name}</div>
-                  <div className="consign-meta">{c.banco} · #{c.numero_comprobante} · {format(new Date(c.fecha), "d MMM, h:mm a", { locale: es })}</div>
-                  {c.estado === 'Validado' && c.cajera_name && (
-                    <div style={{ fontSize: '0.65rem', color: 'var(--neon-green)', fontWeight: 600, marginTop: '2px' }}>
-                      Validado por: {c.cajera_name}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
-                  <span className="consign-amount">{money(c.valor)}</span>
-                  <div style={{ display: 'flex', gap: '0.3rem' }}>
-                    <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: c.empresa === 'ALPINA' ? 'rgba(79,142,255,0.15)' : 'rgba(255,159,28,0.15)', color: c.empresa === 'ALPINA' ? 'var(--neon-blue)' : 'var(--neon-orange)', fontWeight: 800 }}>{c.empresa || 'GENERAL'}</span>
-                    <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
-                  </div>
-                  {c.motivo_rechazo && (
-                    <span style={{ fontSize: '0.62rem', color: 'var(--neon-red)', maxWidth: 120, textAlign: 'right' }}>{c.motivo_rechazo}</span>
-                  )}
+                <div style={{ padding: '0.25rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.auxiliar_name}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>{money(c.valor)} · {c.empresa || 'GEN'}</div>
                 </div>
               </div>
-              {/* Imagen del comprobante */}
-              {c.file_url && (
-                c.file_url.includes('pdf') ? (
-                  <a
-                    href={c.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                      padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(79,142,255,0.1)', border: '1px solid rgba(79,142,255,0.25)',
-                      color: 'var(--neon-blue)', fontSize: '0.75rem', fontWeight: 700,
-                      textDecoration: 'none', width: 'fit-content'
-                    }}
-                  >
-                    📄 Ver PDF del comprobante
-                  </a>
-                ) : (
-                  <a href={c.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
-                    <img
-                      src={c.file_url}
-                      alt="Comprobante"
+            ))}
+          </div>
+        ) : (
+          <div className="card">
+            {filtered.slice(0, 50).map(c => (
+              <div key={c.id} className="consign-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="consign-icon" style={{ background: `${BANCO_COLORS[c.banco] || '#4f8eff'}18`, flexShrink: 0 }}>
+                    <Building2 size={18} color={BANCO_COLORS[c.banco] || 'var(--neon-blue)'} />
+                  </div>
+                  <div className="consign-info" style={{ flex: 1 }}>
+                    <div className="consign-name">{c.auxiliar_name}</div>
+                    <div className="consign-meta">{c.banco} · #{c.numero_comprobante} · {format(new Date(c.fecha), "d MMM, h:mm a", { locale: es })}</div>
+                    {c.estado === 'Validado' && c.cajera_name && (
+                      <div style={{ fontSize: '0.65rem', color: 'var(--neon-green)', fontWeight: 600, marginTop: '2px' }}>
+                        Validado por: {c.cajera_name}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
+                    <span className="consign-amount">{money(c.valor)}</span>
+                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                      <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: c.empresa === 'ALPINA' ? 'rgba(79,142,255,0.15)' : 'rgba(255,159,28,0.15)', color: c.empresa === 'ALPINA' ? 'var(--neon-blue)' : 'var(--neon-orange)', fontWeight: 800 }}>{c.empresa || 'GENERAL'}</span>
+                      <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
+                    </div>
+                    {c.motivo_rechazo && (
+                      <span style={{ fontSize: '0.62rem', color: 'var(--neon-red)', maxWidth: 120, textAlign: 'right' }}>{c.motivo_rechazo}</span>
+                    )}
+                  </div>
+                </div>
+                {/* Imagen del comprobante */}
+                {c.file_url && (
+                  c.file_url.includes('pdf') ? (
+                    <a
+                      href={c.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{
-                        width: '100%',
-                        maxHeight: '220px',
-                        objectFit: 'contain',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border)',
-                        background: '#000',
-                        cursor: 'zoom-in'
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                        padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(79,142,255,0.1)', border: '1px solid rgba(79,142,255,0.25)',
+                        color: 'var(--neon-blue)', fontSize: '0.75rem', fontWeight: 700,
+                        textDecoration: 'none', width: 'fit-content'
                       }}
-                    />
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', display: 'block' }}>
-                      🔍 Clic para ver en tamaño completo
-                    </span>
-                  </a>
-                )
-              )}
-            </div>
-          ))
+                    >
+                      📄 Ver PDF del comprobante
+                    </a>
+                  ) : (
+                    <a href={c.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'block' }}>
+                      <img
+                        src={c.file_url}
+                        alt="Comprobante"
+                        style={{
+                          width: '100%',
+                          maxHeight: '220px',
+                          objectFit: 'contain',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border)',
+                          background: '#000',
+                          cursor: 'zoom-in'
+                        }}
+                      />
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', display: 'block' }}>
+                        🔍 Clic para ver en tamaño completo
+                      </span>
+                    </a>
+                  )
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

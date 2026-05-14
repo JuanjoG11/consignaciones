@@ -148,6 +148,17 @@ export const mockDB = {
     return data.map(c => ({ ...c, fecha: c.created_at }));
   },
 
+  getConsignacionById: async (id) => {
+    const { data, error } = await supabase
+      .from('consignaciones')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return { ...data, fecha: data.created_at };
+  },
+
   // VERIFICAR DUPLICADOS
   // Solo bloquea si el número de comprobante ya existe (sin importar el valor).
   // Mismo valor con diferente número de comprobante → se PERMITE.

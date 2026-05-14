@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, CheckCircle, XCircle, Eye, X, Clock, SlidersHorizontal } from 'lucide-react';
-import { mockDB } from '../lib/supabase';
+import { supabase, mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
@@ -30,6 +30,7 @@ const CajeraPanel = ({ user }) => {
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [selected, setSelected]         = useState(null);
   const [showFilters, setShowFilters]   = useState(false);
+  const [prevPendientes, setPrevPendientes] = useState(0);
 
   const fetch = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -40,9 +41,35 @@ const CajeraPanel = ({ user }) => {
 
   useEffect(() => {
     fetch();
-    const iv = setInterval(() => fetch(true), 5000);
-    return () => clearInterval(iv);
-  }, []);
+    // 1. Polling de respaldo (cada 15s es suficiente con Realtime)
+    const iv = setInterval(() => fetch(true), 15000);
+
+    // 2. SUSCRIPCIÓN REALTIME (Instante)
+    const channel = supabase
+      .channel('consignaciones_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'consignaciones' },
+        (payload) => {
+          console.log('Cambio detectado en Realtime:', payload);
+          fetch(true); // Refrescar lista ante cualquier cambio
+          
+          // Si el cambio es una inserción y es de mi empresa, avisar
+          if (payload.eventType === 'INSERT') {
+            const newItem = payload.new;
+            if (user.empresa && newItem.empresa === user.empresa) {
+              toast('🔔 Nueva consignación entrante', { icon: '🆕' });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(iv);
+      supabase.removeChannel(channel);
+    };
+  }, [user.empresa]);
 
   const handleAction = async (id, estado) => {
     let motivo = null;
@@ -50,8 +77,18 @@ const CajeraPanel = ({ user }) => {
       motivo = prompt('Motivo del rechazo:');
       if (!motivo) return;
     }
-    const tid = toast.loading('Actualizando...');
+    const tid = toast.loading('Verificando estado...');
     try {
+      // 1. Verificar si alguien ya tomó acción mientras el modal estaba abierto
+      const latest = await mockDB.getConsignacionById(id);
+      if (latest.estado !== 'Pendiente') {
+        toast.error(`Esta consignación ya fue ${latest.estado.toLowerCase()} por ${latest.cajera_name || 'otra persona'}.`, { id: tid });
+        fetch(true);
+        setSelected(null);
+        return;
+      }
+
+      toast.loading('Actualizando...', { id: tid });
       await mockDB.updateConsignacionStatus(id, estado, motivo, user.id, user.full_name);
       toast.success(estado === 'Validado' ? '✅ Aprobada' : '❌ Rechazada', { id: tid });
       fetch(true);
@@ -95,7 +132,15 @@ const CajeraPanel = ({ user }) => {
     <div className="page animate-in">
       {/* Hero */}
       <div className="hero-card" style={{ background: 'linear-gradient(135deg, #00e5a0 0%, #00b4d8 100%)', boxShadow: 'var(--shadow-glow-green)' }}>
-        <div className="hero-label">👩‍💼 Panel Cajera</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="hero-label">👩‍💼 Panel Cajera</div>
+          {pendientes > 0 && (
+            <div className="pulse-badge" style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', boxShadow: '0 0 10px #fff', animation: 'pulse 1.5s infinite' }} />
+              EN LÍNEA
+            </div>
+          )}
+        </div>
         <div className="hero-value">{pendientes}</div>
         <div className="hero-sub">{pendientes === 1 ? 'consignación pendiente' : 'consignaciones pendientes'} de validación</div>
       </div>
