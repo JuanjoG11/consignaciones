@@ -179,13 +179,21 @@ const AuxiliarPanel = ({ user }) => {
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    console.log("Submit iniciado", { banco, valor, numero, hasFile: !!file });
+    
+    // Para Gastos y Retenciones generamos un número automático si no existe
+    const isSpecial = banco === 'Gasto' || banco === 'Retención';
+    let finalNumero = numero;
+    if (isSpecial && !numero) {
+      finalNumero = `${banco.toUpperCase()}-${Date.now()}`;
+    }
 
-    if (!banco || !valor || !numero || !file) {
+    console.log("Submit iniciado", { banco, valor, numero: finalNumero, hasFile: !!file });
+
+    if (!banco || !valor || !finalNumero || !file) {
       const missing = [];
       if (!banco) missing.push("Banco");
       if (!valor) missing.push("Valor");
-      if (!numero) missing.push("Número");
+      if (!finalNumero && !isSpecial) missing.push("Número");
       if (!file) missing.push("Foto/PDF");
       
       setModal({
@@ -214,14 +222,14 @@ const AuxiliarPanel = ({ user }) => {
     try {
       // 1. Verificar duplicados (solo por número de comprobante)
       console.log("Verificando duplicados...");
-      const isDuplicate = await mockDB.checkDuplicate(numero);
+      const isDuplicate = await mockDB.checkDuplicate(finalNumero);
       
       if (isDuplicate) {
         console.warn("¡Número de comprobante duplicado detectado!");
         toast.dismiss(tid);
         setModal({
           title: '¡Comprobante Repetido!',
-          message: `El número de comprobante "${numero}" ya fue registrado anteriormente.\nUsa un número de comprobante diferente.`,
+          message: `El número de comprobante "${finalNumero}" ya fue registrado anteriormente.\nUsa un número de comprobante diferente.`,
           icon: '⚠️',
           color: 'var(--neon-red)'
         });
@@ -240,7 +248,7 @@ const AuxiliarPanel = ({ user }) => {
       await mockDB.addConsignacion({
         banco,
         valor: valorNumerico,
-        numero_comprobante: numero,
+        numero_comprobante: finalNumero,
         file_url: publicUrl,
         auxiliar_id: user.id,
         auxiliar_name: user.full_name,
@@ -334,7 +342,13 @@ const AuxiliarPanel = ({ user }) => {
       {/* Selector primario */}
       {!showSub && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', marginBottom: '1.25rem' }}>
-          {BANCOS_PRIMARY.map(b => {
+          {BANCOS_PRIMARY
+            .filter(b => {
+              if (user.empresa === 'ZENU') return b.id !== 'alpina';
+              if (user.empresa === 'ALPINA') return b.id !== 'nutresa';
+              return true;
+            })
+            .map(b => {
             const isSelected = primarySelected?.id === b.id;
             return (
               <button
@@ -430,21 +444,23 @@ const AuxiliarPanel = ({ user }) => {
           />
         </div>
 
-        {/* Número comprobante */}
-        <div>
-          <label className="form-label">
-            <Hash size={12} style={{ display: 'inline', marginRight: 4 }} />
-            Número de Comprobante
-          </label>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Ej. 987654321"
-            value={numero}
-            onChange={e => setNumero(e.target.value)}
-            required
-          />
-        </div>
+        {/* Número comprobante - Solo se muestra si NO es Gasto/Retención */}
+        {!(banco === 'Gasto' || banco === 'Retención') && (
+          <div>
+            <label className="form-label">
+              <Hash size={12} style={{ display: 'inline', marginRight: 4 }} />
+              Número de Comprobante
+            </label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Ej. 987654321"
+              value={numero}
+              onChange={e => setNumero(e.target.value)}
+              required
+            />
+          </div>
+        )}
 
         {/* File Upload */}
         <div>

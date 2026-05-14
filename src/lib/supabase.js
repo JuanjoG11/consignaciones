@@ -14,51 +14,52 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ── Lista de auxiliares autorizados (login por cédula) ──────────────────────
 export const AUXILIARES = [
-  { cedula: '1002730727', nombre: 'JHON WILSON GIRALDO CARVAJAL' },
-  { cedula: '10138323',   nombre: 'ROVINSON TORRES RIVERA' },
-  { cedula: '1004545355', nombre: 'YEISON LEANDRO TABARES CALLE' },
-  { cedula: '9910933',    nombre: 'ARBEY DE JESUS LARGO LARGO' },
-  { cedula: '10033035',   nombre: 'CESAR AUGUSTO CASTILLO LONDOÑO' },
-  { cedula: '1060652216', nombre: 'CRISTIAN CAMILO OSPINA PARRA' },
-  { cedula: '1058821245', nombre: 'VICTOR ALFONSO PULGARIN MEJIA' },
-  { cedula: '1112227774', nombre: 'CHRISTIAN DAVID CAICEDO MONTAÑO' },
-  { cedula: '1112226698', nombre: 'JOSE ALEXANDER CONSTAIN PERLAZA' },
-  { cedula: '18524020',   nombre: 'EDWIN MAURICIO GOMEZ GALINDO' },
-  { cedula: '1053866136', nombre: 'ADRIAN FELIPE MARTINEZ ORTEGON' },
-  { cedula: '1088253407', nombre: 'CARLOS ANDRES PINEDA CANO' },
-  { cedula: '1087559558', nombre: 'JUAN ALEJANDRO FRANCO MARIN' },
-  { cedula: '1112778308', nombre: 'LUIS CARLOS CADAVID RESTREPO' },
-  { cedula: '1089933391', nombre: 'BRAHIAN STIVEN VALENCIA IGLESIAS' },
-  { cedula: '1088249115', nombre: 'JOHN EDWAR ZAPATA ACEVEDO' },
-  { cedula: '1004671619', nombre: 'BRANDON STEVEN GIL BAEZ' },
-  { cedula: '1004778577', nombre: 'JUAN MANUEL DELGADO NARVAEZ' },
-  { cedula: '1007783801', nombre: 'YEISON DAVID RENDON SOTO' },
-  { cedula: '1088334475', nombre: 'SEBASTIAN VILLADA VELASQUEZ' },
-  { cedula: '1127384755', nombre: 'CAMILO ANDRES CONTRERAS RIVAS' },
-  { cedula: '1088308341', nombre: 'JUAN DAVID QUINTERO GRAJALES' },
-  { cedula: '1123141444', nombre: 'CRISTIAN FABIAN CAMACHO MARTINEZ' },
-  { cedula: '1038926903', nombre: 'DIORLAN ANTONIO MESA FLOREZ' },
-  { cedula: '1038768016', nombre: 'ANDRES FELIPE RIOS CAICEDO' },
-  { cedula: '1004669724', nombre: 'QUEBIN ANDRES LOTERO ZAPATA' },
-  { cedula: '1088340979', nombre: 'JORGE ELIECER CRUZ PINEDA' },
-  { cedula: '1004737907', nombre: 'SANTIAGO HENAO MORALES' },
-  { cedula: '1093215191', nombre: 'JHON HENRY GARCIA PATIÑO' },
-  { cedula: '1007605268', nombre: 'ANDRES CAMILO MUÑOZ CAICEDO' },
-  { cedula: '1006128361', nombre: 'CAMILO LEANDRO GUECHE PEÑA' },
-  { cedula: '10027683',   nombre: 'GERMAN GALVEZ CORTES' },
-  { cedula: '18519474',   nombre: 'OSCAR MAURICIO RESTREPO MORENO' },
-  { cedula: '1088331177', nombre: 'MICHAEL STEVEN HENAO RODRIGUEZ' },
-  { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO' },
-  { cedula: '1007232739', nombre: 'GERMAN DANIEL PATIÑO VELASQUEZ' },
-  { cedula: '1093220521', nombre: 'JUAN DIEGO FRANCO VERGARA' },
-  { cedula: '1112776419', nombre: 'JAMMES ALBERTO RAMIREZ NIETO' },
-  { cedula: '1098724347', nombre: 'SEBASTIAN SALAZAR HENAO' },
-  { cedula: '1088037094', nombre: 'DANIEL FELIPE MURILLO GRANDA' },
-  { cedula: '1089601941', nombre: 'FELIPE MONTES RIVERA' },
-  { cedula: '9862197',    nombre: 'GUSTAVO ADOLFO MORALES TIRADO' },
-  { cedula: '1006296150', nombre: 'JHONATAN MENA GALLEGO' },
-  { cedula: '10005257',   nombre: 'OSCAR MAURICIO GUARUMO CLAVIJO' },
-  { cedula: '1004701171', nombre: 'JUAN SEBASTIAN TAMAYO PULGARIN' },
+  { cedula: '1023378066', nombre: 'ANDRES MATEO VILLALBA DIAZ', empresa: 'ALPINA' },
+  { cedula: '1002730727', nombre: 'JHON WILSON GIRALDO CARVAJAL', empresa: 'ALPINA' },
+  { cedula: '10138323',   nombre: 'ROVINSON TORRES RIVERA', empresa: 'ALPINA' },
+  { cedula: '1088352440', nombre: 'JUAN ESTEBAN GALLEGO DIEZ', empresa: 'ALPINA' },
+  { cedula: '1004545355', nombre: 'YEISON LEANDRO TABARES CALLE', empresa: 'ALPINA' },
+  { cedula: '1099204769', nombre: 'MILTON GILMER OSORIO CALLE', empresa: 'ALPINA' },
+  { cedula: '9910933',    nombre: 'ARBEY DE JESUS LARGO LARGO', empresa: 'ALPINA' },
+  { cedula: '10033035',   nombre: 'CESAR AUGUSTO CASTILLO LONDOÑO', empresa: 'ALPINA' },
+  { cedula: '1060652216', nombre: 'CRISTIAN CAMILO OSPINA PARRA', empresa: 'ALPINA' },
+  { cedula: '1058821245', nombre: 'VICTOR ALFONSO PULGARIN MEJIA', empresa: 'ALPINA' },
+  { cedula: '1112227774', nombre: 'CHRISTIAN DAVID CAICEDO MONTAÑO', empresa: 'ALPINA' },
+  { cedula: '1112226698', nombre: 'JOSE ALEXANDER CONSTAIN PERLAZA', empresa: 'ALPINA' },
+  { cedula: '18524020',   nombre: 'EDWIN MAURICIO GOMEZ GALINDO', empresa: 'ALPINA' },
+  { cedula: '1053866136', nombre: 'ADRIAN FELIPE MARTINEZ ORTEGON', empresa: 'ALPINA' },
+  { cedula: '1088253407', nombre: 'CARLOS ANDRES PINEDA CANO', empresa: 'ALPINA' },
+  { cedula: '1087559558', nombre: 'JUAN ALEJANDRO FRANCO MARIN', empresa: 'ALPINA' },
+  { cedula: '1112778308', nombre: 'LUIS CARLOS CADAVID RESTREPO', empresa: 'ALPINA' },
+  { cedula: '1089933391', nombre: 'BRAHIAN STIVEN VALENCIA IGLESIAS', empresa: 'ALPINA' },
+  { cedula: '1088249115', nombre: 'JOHN EDWAR ZAPATA ACEVEDO', empresa: 'ALPINA' },
+  { cedula: '1004671619', nombre: 'BRANDON STEVEN GIL BAEZ', empresa: 'ALPINA' },
+  { cedula: '1004778577', nombre: 'JUAN MANUEL DELGADO NARVAEZ', empresa: 'ALPINA' },
+  { cedula: '1007783801', nombre: 'YEISON DAVID RENDON SOTO', empresa: 'ALPINA' },
+  { cedula: '1088334475', nombre: 'SEBASTIAN VILLADA VELASQUEZ', empresa: 'ALPINA' },
+  { cedula: '1127384755', nombre: 'CAMILO ANDRES CONTRERAS RIVAS', empresa: 'ALPINA' },
+  { cedula: '1088308341', nombre: 'JUAN DAVID QUINTERO GRAJALES', empresa: 'ALPINA' },
+  { cedula: '1123141444', nombre: 'CRISTIAN FABIAN CAMACHO MARTINEZ', empresa: 'ALPINA' },
+  { cedula: '1038926903', nombre: 'DIORLAN ANTONIO MESA FLOREZ', empresa: 'ALPINA' },
+  { cedula: '1038768016', nombre: 'ANDRES FELIPE RIOS CAICEDO', empresa: 'ALPINA' },
+  { cedula: '1004669724', nombre: 'QUEBIN ANDRES LOTERO ZAPATA', empresa: 'ALPINA' },
+  { cedula: '1004737907', nombre: 'SANTIAGO HENAO MORALES', empresa: 'ALPINA' },
+  { cedula: '1093215191', nombre: 'JHON HENRY GARCIA PATIÑO', empresa: 'ALPINA' },
+  { cedula: '1007605268', nombre: 'ANDRES CAMILO MUÑOZ CAICEDO', empresa: 'ALPINA' },
+  { cedula: '1006128361', nombre: 'CAMILO LEANDRO GUECHE PEÑA', empresa: 'ALPINA' },
+  { cedula: '10027683',   nombre: 'GERMAN GALVEZ CORTES', empresa: 'ALPINA' },
+  { cedula: '18519474',   nombre: 'OSCAR MAURICIO RESTREPO MORENO', empresa: 'ALPINA' },
+  { cedula: '1088331177', nombre: 'MICHAEL STEVEN HENAO RODRIGUEZ', empresa: 'ALPINA' },
+  { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO', empresa: 'ALPINA' },
+  { cedula: '1093220521', nombre: 'JUAN DIEGO FRANCO VERGARA', empresa: 'ALPINA' },
+  { cedula: '1112776419', nombre: 'JAMMES ALBERTO RAMIREZ NIETO', empresa: 'ZENU' },
+  { cedula: '1098724347', nombre: 'SEBASTIAN SALAZAR HENAO', empresa: 'ZENU' },
+  { cedula: '1088037094', nombre: 'DANIEL FELIPE MURILLO GRANDA', empresa: 'ZENU' },
+  { cedula: '1089601941', nombre: 'FELIPE MONTES RIVERA', empresa: 'ZENU' },
+  { cedula: '9862197',    nombre: 'GUSTAVO ADOLFO MORALES TIRADO', empresa: 'ZENU' },
+  { cedula: '1006296150', nombre: 'JHONATAN MENA GALLEGO', empresa: 'ZENU' },
+  { cedula: '10005257',   nombre: 'OSCAR MAURICIO GUARUMO CLAVIJO', empresa: 'ZENU' },
+  { cedula: '1004701171', nombre: 'JUAN SEBASTIAN TAMAYO PULGARIN', empresa: 'ZENU' },
 ];
 
 export const mockAuth = {
@@ -78,6 +79,7 @@ export const mockAuth = {
         cedula: aux.cedula,
         role: 'auxiliar',
         full_name: aux.nombre,
+        empresa: aux.empresa || 'GENERAL',
       };
       localStorage.setItem('consignaciones_user', JSON.stringify(user));
       return { user, error: null };
@@ -215,5 +217,18 @@ export const mockDB = {
       .getPublicUrl(filePath);
 
     return data.publicUrl;
+  },
+
+  // BORRAR TODO EL HISTORIAL (REAL)
+  clearHistory: async () => {
+    // Para borrar todo en Supabase con RLS habilitado (si no hay una política específica de delete all),
+    // a veces es necesario filtrar por algo que incluya a todos.
+    const { error } = await supabase
+      .from('consignaciones')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); 
+
+    if (error) throw error;
+    return { error: null };
   }
 };

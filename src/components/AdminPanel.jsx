@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter } from 'lucide-react';
+import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter, Trash2 } from 'lucide-react';
 import { mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -102,6 +102,21 @@ const AdminPanel = ({ user }) => {
     } catch (err) {
       console.error("Error en backup:", err);
       toast.error('Error al generar el respaldo', { id: tid });
+    }
+  };
+
+  const handleClearHistory = async () => {
+    const confirm = window.confirm('¿Estás SEGURO de que deseas borrar TODO el historial? Esta acción no se puede deshacer y se recomienda haber descargado un respaldo primero.');
+    if (!confirm) return;
+
+    const tid = toast.loading('Borrando historial...');
+    try {
+      await mockDB.clearHistory();
+      toast.success('Historial borrado correctamente', { id: tid });
+      fetchConsignaciones();
+    } catch (err) {
+      console.error("Error al borrar historial:", err);
+      toast.error('Error al borrar historial', { id: tid });
     }
   };
 
@@ -263,6 +278,16 @@ const AdminPanel = ({ user }) => {
           >
             <Download size={20} />
             Descargar Respaldo Completo (ZIP)
+          </button>
+
+          <button
+            className="btn btn-danger w-full"
+            style={{ padding: '0.75rem', fontSize: '0.85rem', background: 'rgba(255,77,109,0.1)', border: '1px solid rgba(255,77,109,0.3)', color: 'var(--neon-red)' }}
+            onClick={handleClearHistory}
+            disabled={loading || consignaciones.length === 0}
+          >
+            <Trash2 size={16} />
+            Borrar Historial
           </button>
         </div>
       </div>
