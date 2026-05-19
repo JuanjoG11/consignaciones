@@ -183,13 +183,18 @@ export const mockDB = {
   // VERIFICAR DUPLICADOS
   // Solo bloquea si el número de comprobante ya existe (sin importar el valor).
   // Mismo valor con diferente número de comprobante → se PERMITE.
-  checkDuplicate: async (numero_comprobante) => {
-    const { data, error } = await supabase
+  checkDuplicate: async (numero_comprobante, excludeId = null) => {
+    let query = supabase
       .from('consignaciones')
       .select('id')
       .eq('numero_comprobante', numero_comprobante)
-      .neq('estado', 'Rechazado')
-      .limit(1);
+      .neq('estado', 'Rechazado');
+      
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+    
+    const { data, error } = await query.limit(1);
     
     if (error) throw error;
     return data && data.length > 0; // true si el número existe y no está rechazado
@@ -214,6 +219,16 @@ export const mockDB = {
 
     if (error) throw error;
     return { data: data[0], error: null };
+  },
+
+  // ACTUALIZAR REGISTRO COMPLETO (EDITAR)
+  updateConsignacion: async (id, updateData) => {
+    const { error } = await supabase
+      .from('consignaciones')
+      .update(updateData)
+      .eq('id', id);
+    if (error) throw error;
+    return { error: null };
   },
 
   // ACTUALIZAR ESTADO (REAL)

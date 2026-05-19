@@ -82,15 +82,11 @@ const CajeraPanel = ({ user }) => {
       // 1. Verificar si alguien ya tomó acción mientras el modal estaba abierto
       const latest = await mockDB.getConsignacionById(id);
       
-      // Permitir: 
-      // - Pendiente -> cualquier estado
-      // - Rechazado -> Validado (Corregir y Aprobar)
-      const isTransitionValid = 
-        latest.estado === 'Pendiente' || 
-        (latest.estado === 'Rechazado' && estado === 'Validado');
+      // Permitir cualquier transición siempre y cuando el estado sea diferente
+      const isTransitionValid = latest.estado !== estado;
 
       if (!isTransitionValid) {
-        toast.error(`Esta consignación ya fue ${latest.estado.toLowerCase()} por ${latest.cajera_name || 'otra persona'}.`, { id: tid });
+        toast.error(`Esta consignación ya tiene el estado ${latest.estado.toLowerCase()} por ${latest.cajera_name || 'otra persona'}.`, { id: tid });
         fetch(true);
         setSelected(null);
         return;
@@ -348,7 +344,7 @@ const CajeraPanel = ({ user }) => {
                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: 'auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: selected.estado === 'Pendiente' ? '1fr 1fr' : '1fr', gap: '1rem', marginTop: 'auto' }}>
                     {selected.estado !== 'Rechazado' && (
                       <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: '1rem' }}>
                         <XCircle size={18} /> Rechazar Consignación

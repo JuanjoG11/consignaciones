@@ -91,6 +91,7 @@ const AuxiliarPanel = ({ user }) => {
   const [compressing, setCompressing] = useState(false);
   const [history, setHistory]     = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [editingItem, setEditingItem] = useState(null);
 
   // VERIFICAR DUPLICADOS (solo por número de comprobante)
   const checkDuplicate = async (numero_comprobante) => {
@@ -177,6 +178,31 @@ const AuxiliarPanel = ({ user }) => {
 
   const [modal, setModal] = useState(null); // { title, message, icon, color }
 
+  const handleEditClick = (item) => {
+    setEditingItem(item);
+    setBanco(item.banco);
+    setValor(formatCurrency(item.valor.toString()));
+    setNumero(item.numero_comprobante || '');
+    setFile(null);
+    // Encontrar el banco primario correspondiente en la lista
+    const primary = BANCOS_PRIMARY.find(b => 
+      b.value === item.banco || 
+      (b.children && b.children.some(c => c.value === item.banco))
+    );
+    if (primary) {
+      setPrimarySelected(primary);
+      if (primary.children) {
+        setShowSub(true);
+      }
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingItem(null);
+    reset();
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     
@@ -189,12 +215,15 @@ const AuxiliarPanel = ({ user }) => {
 
     console.log("Submit iniciado", { banco, valor, numero: finalNumero, hasFile: !!file });
 
-    if (!banco || !valor || !finalNumero || !file) {
+    // Si es edición, la foto no es requerida obligatoriamente (se conserva la anterior si no se sube otra)
+    const isFileRequired = !editingItem;
+
+    if (!banco || !valor || (!finalNumero && !isSpecial) || (isFileRequired && !file)) {
       const missing = [];
       if (!banco) missing.push("Banco");
       if (!valor) missing.push("Valor");
       if (!finalNumero && !isSpecial) missing.push("Número");
-      if (!file) missing.push("Foto/PDF");
+      if (isFileRequired && !file) missing.push("Foto/PDF");
       
       setModal({
         title: 'Faltan Datos',
@@ -220,9 +249,9 @@ const AuxiliarPanel = ({ user }) => {
     const tid = toast.loading('Verificando datos...');
 
     try {
-      // 1. Verificar duplicados (solo por número de comprobante)
+      // 1. Verificar duplicados (solo por número de comprobante, excluyendo el ID actual si es edición)
       console.log("Verificando duplicados...");
-      const isDuplicate = await mockDB.checkDuplicate(finalNumero);
+      const isDuplicate = await mockDB.checkDuplicate(finalNumero, editingItem?.id);
       
       if (isDuplicate) {
         console.warn("¡Número de comprobante duplicado detectado!");
@@ -238,25 +267,45 @@ const AuxiliarPanel = ({ user }) => {
       }
 
       // 2. Subir archivo
-      console.log("Subiendo archivo...");
-      toast.loading('Subiendo comprobante...', { id: tid });
-      const publicUrl = await mockDB.uploadFile(file);
+      let publicUrl = editingItem ? editingItem.file_url : null;
+      if (file) {
+        console.log("Subiendo archivo nuevo...");
+        toast.loading('Subiendo comprobante...', { id: tid });
+        publicUrl = await mockDB.uploadFile(file);
+      }
       
-      // 3. Guardar registro
-      console.log("Guardando en DB...");
-      toast.loading('Guardando consignación...', { id: tid });
-      await mockDB.addConsignacion({
-        banco,
-        valor: valorNumerico,
-        numero_comprobante: finalNumero,
-        file_url: publicUrl,
-        auxiliar_id: user.id,
-        auxiliar_name: user.full_name,
-        empresa: user.empresa || 'GENERAL',
-      });
+      // 3. Guardar o actualizar registro
+      if (editingItem) {
+        console.log("Actualizando en DB...");
+        toast.loading('Actualizando consignación...', { id: tid });
+        await mockDB.updateConsignacion(editingItem.id, {
+          banco,
+          valor: valorNumerico,
+          numero_comprobante: finalNumero,
+          file_url: publicUrl,
+          estado: 'Pendiente', // Al editar vuelve a pendiente para revisión
+          motivo_rechazo: null // Se limpia el motivo del rechazo previo
+        });
 
-      toast.success('¡Consignación registrada correctamente! 🎉', { id: tid });
-      setSuccess(true);
+        toast.success('¡Consignación corregida! Volverá a ser revisada. 🌟', { id: tid });
+        setEditingItem(null);
+        reset();
+      } else {
+        console.log("Guardando nuevo en DB...");
+        toast.loading('Guardando consignación...', { id: tid });
+        await mockDB.addConsignacion({
+          banco,
+          valor: valorNumerico,
+          numero_comprobante: finalNumero,
+          file_url: publicUrl,
+          auxiliar_id: user.id,
+          auxiliar_name: user.full_name,
+          empresa: user.empresa || 'GENERAL',
+        });
+
+        toast.success('¡Consignación registrada correctamente! 🎉', { id: tid });
+        setSuccess(true);
+      }
     } catch (err) {
       console.error("Error detallado:", err);
       toast.dismiss(tid);
@@ -298,11 +347,19 @@ const AuxiliarPanel = ({ user }) => {
   return (
     <div className="page animate-in">
       {/* Hero */}
-      <div className="hero-card">
-        <div className="hero-label">📅 {today}</div>
-        <div className="hero-value" style={{ fontSize: '1.4rem', marginTop: '0.25rem' }}>Nueva Consignación</div>
-        <div className="hero-sub">Registra el comprobante para validación 🏦</div>
-      </div>
+      {editingItem ? (
+        <div className="hero-card" style={{ background: 'linear-gradient(135deg, #4f8eff 0%, #00b4d8 100%)', boxShadow: 'var(--shadow-glow-blue)' }}>
+          <div className="hero-label">✏️ CORREGIR CONSIGNACIÓN</div>
+          <div className="hero-value" style={{ fontSize: '1.4rem', marginTop: '0.25rem' }}>Editar Datos</div>
+          <div className="hero-sub">Corrige el valor, banco o comprobante y actualiza en tiempo real ⚡</div>
+        </div>
+      ) : (
+        <div className="hero-card">
+          <div className="hero-label">📅 {today}</div>
+          <div className="hero-value" style={{ fontSize: '1.4rem', marginTop: '0.25rem' }}>Nueva Consignación</div>
+          <div className="hero-sub">Registra el comprobante para validación 🏦</div>
+        </div>
+      )}
 
       {/* Resumen rápido Auxiliar */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
@@ -487,6 +544,12 @@ const AuxiliarPanel = ({ user }) => {
                 <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neon-green)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-2)' }}>{(file.size / 1024 / 1024).toFixed(2)} MB · Toca para cambiar</span>
               </div>
+            ) : editingItem ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                <ImageIcon size={32} color="var(--neon-blue)" />
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neon-blue)' }}>Conservar foto actual</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-2)' }}>Toca para cambiar la imagen / comprobante</span>
+              </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                 <UploadCloud size={36} style={{ color: 'var(--text-2)' }} />
@@ -497,18 +560,41 @@ const AuxiliarPanel = ({ user }) => {
           </label>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="btn btn-primary w-full"
-          style={{ padding: '1rem', fontSize: '1rem', marginTop: '0.5rem' }}
-          disabled={loading || compressing}
-        >
-          {loading
-            ? <><div className="spinner" /> Guardando...</>
-            : <>Guardar Consignación 🚀</>
-          }
-        </button>
+        {editingItem ? (
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="btn btn-ghost"
+              style={{ flex: 1, padding: '1rem', fontSize: '1rem' }}
+              disabled={loading || compressing}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="btn btn-primary"
+              style={{ flex: 2, padding: '1rem', fontSize: '1rem' }}
+              disabled={loading || compressing}
+            >
+              {loading ? 'Actualizando...' : 'Actualizar 💾'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="btn btn-primary w-full"
+            style={{ padding: '1rem', fontSize: '1rem', marginTop: '0.5rem' }}
+            disabled={loading || compressing}
+          >
+            {loading
+              ? <><div className="spinner" /> Guardando...</>
+              : <>Guardar Consignación 🚀</>
+            }
+          </button>
+        )}
       </form>
 
       {/* ── HISTORIAL ── */}
@@ -559,6 +645,18 @@ const AuxiliarPanel = ({ user }) => {
                       <p style={{ fontSize: '0.7rem', color: 'var(--neon-red)' }}>
                         <strong>Rechazado:</strong> {item.motivo_rechazo}
                       </p>
+                    </div>
+                  )}
+                  {item.estado !== 'Validado' && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(item)}
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.7rem', padding: '4px 10px', height: 'auto', display: 'flex', alignItems: 'center', gap: '4px', border: '1px dashed var(--border)', borderRadius: '6px' }}
+                      >
+                        ✏️ Corregir datos
+                      </button>
                     </div>
                   )}
                 </div>
