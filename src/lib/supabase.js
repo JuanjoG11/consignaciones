@@ -202,10 +202,10 @@ export const mockDB = {
     // y guardamos quién lo hizo
     if (estado === 'Validado') {
       updateData.motivo_rechazo = null;
-      if (cajera_id) updateData.cajera_id = cajera_id;
       if (cajera_name) updateData.cajera_name = cajera_name;
-    } else if (motivo) {
-      updateData.motivo_rechazo = motivo;
+    } else if (estado === 'Rechazado') {
+      if (motivo) updateData.motivo_rechazo = motivo;
+      if (cajera_name) updateData.cajera_name = cajera_name;
     }
 
     const { error } = await supabase

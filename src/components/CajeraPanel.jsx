@@ -81,7 +81,15 @@ const CajeraPanel = ({ user }) => {
     try {
       // 1. Verificar si alguien ya tomó acción mientras el modal estaba abierto
       const latest = await mockDB.getConsignacionById(id);
-      if (latest.estado !== 'Pendiente') {
+      
+      // Permitir: 
+      // - Pendiente -> cualquier estado
+      // - Rechazado -> Validado (Corregir y Aprobar)
+      const isTransitionValid = 
+        latest.estado === 'Pendiente' || 
+        (latest.estado === 'Rechazado' && estado === 'Validado');
+
+      if (!isTransitionValid) {
         toast.error(`Esta consignación ya fue ${latest.estado.toLowerCase()} por ${latest.cajera_name || 'otra persona'}.`, { id: tid });
         fetch(true);
         setSelected(null);
@@ -93,7 +101,10 @@ const CajeraPanel = ({ user }) => {
       toast.success(estado === 'Validado' ? '✅ Aprobada' : '❌ Rechazada', { id: tid });
       fetch(true);
       setSelected(null);
-    } catch { toast.error('Error', { id: tid }); }
+    } catch (e) { 
+      toast.error('Error al actualizar', { id: tid }); 
+      console.error(e);
+    }
   };
 
   const filtered = consignaciones
@@ -309,7 +320,7 @@ const CajeraPanel = ({ user }) => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '2rem' }}>
                 {/* Details list */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
@@ -322,6 +333,10 @@ const CajeraPanel = ({ user }) => {
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-3)' }}>Nº Comprobante</span>
                         <span style={{ fontWeight: 700 }}>{selected.numero_comprobante}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-3)' }}>Fecha</span>
+                        <span style={{ fontWeight: 700 }}>{format(new Date(selected.fecha), "d/MM/yyyy, h:mm a")}</span>
                       </div>
                     </div>
                   </div>
@@ -358,8 +373,8 @@ const CajeraPanel = ({ user }) => {
                         <a href={selected.file_url} target="_blank" className="btn btn-ghost" style={{ marginTop: '1rem' }}>Ver PDF completo</a>
                       </div>
                     ) : (
-                      <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', background: '#000' }}>
-                        <img src={selected.file_url} alt="Evidencia" style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }} />
+                      <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', background: '#000', display: 'flex', justifyContent: 'center' }}>
+                        <img src={selected.file_url} alt="Evidencia" style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain' }} />
                         <a href={selected.file_url} target="_blank" className="btn btn-ghost" style={{ position: 'absolute', bottom: '1rem', right: '1rem', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
                           <Eye size={16} /> Ver original
                         </a>
@@ -404,9 +419,13 @@ const CajeraPanel = ({ user }) => {
                       <span style={{ color: 'var(--text-3)' }}>Valor</span>
                       <span style={{ fontWeight: 700, color: 'var(--neon-blue)' }}>{money(selected.valor)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                       <span style={{ color: 'var(--text-3)' }}>Comprobante</span>
                       <span style={{ fontWeight: 700 }}>#{selected.numero_comprobante}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-3)' }}>Fecha</span>
+                      <span style={{ fontWeight: 700 }}>{format(new Date(selected.fecha), "d/MM/yyyy, h:mm a")}</span>
                     </div>
                   </div>
 
