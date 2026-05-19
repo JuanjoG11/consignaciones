@@ -157,6 +157,20 @@ const AdminPanel = ({ user }) => {
   }, {});
   const topBank = Object.entries(byBank).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
 
+  // Cuadre diario (Totales validados agrupados por día)
+  const dailyTotals = consignaciones
+    .filter(c => c.estado === 'Validado')
+    .reduce((acc, c) => {
+      const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
+      acc[dateStr] = (acc[dateStr] || 0) + c.valor;
+      return acc;
+    }, {});
+
+  const dailyBreakdown = Object.entries(dailyTotals)
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 7);
+
   const STATS = [
     {
       label: 'Total Validado',
@@ -333,6 +347,30 @@ const AdminPanel = ({ user }) => {
             <Download size={20} />
             Descargar Respaldo Completo (ZIP)
           </button>
+        </div>
+
+        {/* Cuadre Diario (Día a Día) */}
+        <div className="card animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
+            <Clock size={16} color="var(--neon-green)" />
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cuadre Diario (Validados)</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+            {dailyBreakdown.length === 0 ? (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-3)', textAlign: 'center', padding: '1rem' }}>No hay registros validados</div>
+            ) : (
+              dailyBreakdown.map(item => (
+                <div key={item.date} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-2)' }}>
+                    {format(new Date(item.date + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--neon-green)' }}>
+                    {money(item.total)}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
