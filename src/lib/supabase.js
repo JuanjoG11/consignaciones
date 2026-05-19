@@ -128,7 +128,28 @@ export const mockAuth = {
 
   getUser: () => {
     const userStr = localStorage.getItem('consignaciones_user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) return null;
+    const user = JSON.parse(userStr);
+    
+    // Auto-reparar sesiones viejas de auxiliares sin empresa correcta
+    if (user.role === 'auxiliar') {
+      const aux = AUXILIARES.find(a => a.cedula === user.cedula);
+      if (aux) {
+        let needsUpdate = false;
+        if (user.empresa !== aux.empresa) {
+          user.empresa = aux.empresa || 'GENERAL';
+          needsUpdate = true;
+        }
+        if (user.full_name !== aux.nombre) {
+          user.full_name = aux.nombre;
+          needsUpdate = true;
+        }
+        if (needsUpdate) {
+          localStorage.setItem('consignaciones_user', JSON.stringify(user));
+        }
+      }
+    }
+    return user;
   },
 };
 
