@@ -254,6 +254,16 @@ export const mockDB = {
     return { error: null };
   },
 
+  // ELIMINAR CONSIGNACIÓN (REAL)
+  deleteConsignacion: async (id) => {
+    const { error } = await supabase
+      .from('consignaciones')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return { error: null };
+  },
+
   // SUBIR ARCHIVO A STORAGE (REAL)
   uploadFile: async (file) => {
     const fileExt = file.name.split('.').pop();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter, LayoutGrid, List } from 'lucide-react';
+import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter, LayoutGrid, List, Trash2 } from 'lucide-react';
 import { mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -38,6 +38,21 @@ const AdminPanel = ({ user }) => {
     const data = await mockDB.getConsignaciones();
     setConsignaciones(data);
     if (!silent) setLoading(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar permanentemente esta consignación? Esta acción no se puede deshacer y los totales se actualizarán de inmediato.')) {
+      return;
+    }
+    const tid = toast.loading('Eliminando consignación...');
+    try {
+      await mockDB.deleteConsignacion(id);
+      toast.success('Consignación eliminada correctamente 🗑️', { id: tid });
+      fetchConsignaciones(true);
+    } catch (e) {
+      console.error(e);
+      toast.error('Error al eliminar la consignación', { id: tid });
+    }
   };
 
   useEffect(() => {
@@ -351,9 +366,19 @@ const AdminPanel = ({ user }) => {
                   ) : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>Sin foto</div>}
                   <a href={c.file_url} target="_blank" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2 }} />
                 </div>
-                <div style={{ padding: '0.25rem' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.auxiliar_name}</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>{money(c.valor)} · {c.empresa || 'GEN'}</div>
+                <div style={{ padding: '0.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={c.auxiliar_name}>{c.auxiliar_name}</div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>{money(c.valor)} · {c.empresa || 'GEN'}</div>
+                  </div>
+                  <button 
+                    onClick={() => handleDelete(c.id)}
+                    className="btn btn-ghost"
+                    title="Eliminar consignación"
+                    style={{ padding: '4px', height: 'auto', minWidth: 'auto', border: 'none', color: 'var(--neon-red)', background: 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -377,9 +402,17 @@ const AdminPanel = ({ user }) => {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
                     <span className="consign-amount">{money(c.valor)}</span>
-                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', background: c.empresa === 'ALPINA' ? 'rgba(79,142,255,0.15)' : 'rgba(255,159,28,0.15)', color: c.empresa === 'ALPINA' ? 'var(--neon-blue)' : 'var(--neon-orange)', fontWeight: 800 }}>{c.empresa || 'GENERAL'}</span>
                       <span className={`badge ${badgeClass(c.estado)}`}>{c.estado}</span>
+                      <button 
+                        onClick={() => handleDelete(c.id)}
+                        className="btn btn-ghost"
+                        title="Eliminar consignación"
+                        style={{ padding: '2px', height: 'auto', minWidth: 'auto', border: 'none', color: 'var(--neon-red)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                     {c.motivo_rechazo && (
                       <span style={{ fontSize: '0.62rem', color: 'var(--neon-red)', maxWidth: 120, textAlign: 'right' }}>{c.motivo_rechazo}</span>
