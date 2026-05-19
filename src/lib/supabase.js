@@ -167,10 +167,11 @@ export const mockDB = {
       .from('consignaciones')
       .select('id')
       .eq('numero_comprobante', numero_comprobante)
-      .maybeSingle();
+      .neq('estado', 'Rechazado')
+      .limit(1);
     
     if (error) throw error;
-    return !!data; // true si el número ya existe, false si es nuevo
+    return data && data.length > 0; // true si el número existe y no está rechazado
   },
 
   // AGREGAR CONSIGNACIÓN (REAL)
