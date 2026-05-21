@@ -92,6 +92,9 @@ const AuxiliarPanel = ({ user }) => {
   const [history, setHistory]     = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [editingItem, setEditingItem] = useState(null);
+  const [filterStart, setFilterStart] = useState('');
+  const [filterEnd, setFilterEnd] = useState('');
+  const [filteredHistory, setFilteredHistory] = useState([]);
 
   // VERIFICAR DUPLICADOS (solo por número de comprobante)
   const checkDuplicate = async (numero_comprobante) => {
@@ -119,6 +122,29 @@ const AuxiliarPanel = ({ user }) => {
     const interval = setInterval(fetchHistory, 30000);
     return () => clearInterval(interval);
   }, [user.id]);
+
+  // Filtrar historial por rango de fechas
+  useEffect(() => {
+    if (!filterStart && !filterEnd) {
+      setFilteredHistory(history);
+      return;
+    }
+    const start = filterStart ? new Date(filterStart) : null;
+    const end = filterEnd ? new Date(filterEnd) : null;
+    
+    const filtered = history.filter(item => {
+      const itemDate = new Date(item.fecha);
+      // Ajustar la fecha final para incluir todo el día
+      if (start && itemDate < start) return false;
+      if (end) {
+        const endOfDay = new Date(end);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (itemDate > endOfDay) return false;
+      }
+      return true;
+    });
+    setFilteredHistory(filtered);
+  }, [history, filterStart, filterEnd]);
 
   const formatCurrency = (val) => {
     const clean = val.replace(/\D/g, '');
@@ -601,8 +627,45 @@ const AuxiliarPanel = ({ user }) => {
       <div className="section-header" style={{ marginTop: '2.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <History size={18} className="text-blue" />
-          <span className="section-title">Mis Registros Recientes</span>
+          <span className="section-title">Mis Registros</span>
         </div>
+      </div>
+
+      {/* Filtro por fecha */}
+      <div className="card" style={{ marginBottom: '1.25rem', padding: '1rem', background: 'rgba(79,142,255,0.05)', border: '1px solid rgba(79,142,255,0.2)' }}>
+        <p style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-2)', textTransform: 'uppercase' }}>Filtrar por fecha</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <div>
+            <label style={{ fontSize: '0.7rem', color: 'var(--text-3)', display: 'block', marginBottom: '0.25rem' }}>Desde:</label>
+            <input
+              type="date"
+              value={filterStart}
+              onChange={(e) => setFilterStart(e.target.value)}
+              className="form-control"
+              style={{ fontSize: '0.85rem' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.7rem', color: 'var(--text-3)', display: 'block', marginBottom: '0.25rem' }}>Hasta:</label>
+            <input
+              type="date"
+              value={filterEnd}
+              onChange={(e) => setFilterEnd(e.target.value)}
+              className="form-control"
+              style={{ fontSize: '0.85rem' }}
+            />
+          </div>
+        </div>
+        {(filterStart || filterEnd) && (
+          <button
+            type="button"
+            onClick={() => { setFilterStart(''); setFilterEnd(''); }}
+            className="btn btn-ghost"
+            style={{ width: '100%', fontSize: '0.75rem', padding: '0.5rem', height: 'auto' }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: '2rem' }}>
@@ -615,9 +678,17 @@ const AuxiliarPanel = ({ user }) => {
             <Clock size={32} style={{ marginBottom: '0.75rem', opacity: 0.3 }} />
             <p style={{ fontSize: '0.85rem' }}>Aún no has enviado consignaciones</p>
           </div>
+        ) : filteredHistory.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-3)' }}>
+            <Clock size={32} style={{ marginBottom: '0.75rem', opacity: 0.3 }} />
+            <p style={{ fontSize: '0.85rem' }}>No hay registros en el rango de fechas seleccionado</p>
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {history.slice(0, 10).map((item) => (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', padding: '0.75rem 0', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+              Mostrando {filteredHistory.length} de {history.length} registros
+            </div>
+            {filteredHistory.map((item) => (
               <div key={item.id} className="consign-item" style={{ borderBottom: '1px solid var(--border)', padding: '1rem 0' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
@@ -662,11 +733,6 @@ const AuxiliarPanel = ({ user }) => {
                 </div>
               </div>
             ))}
-            {history.length > 10 && (
-              <p style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-3)', marginTop: '1rem' }}>
-                Mostrando los últimos 10 registros
-              </p>
-            )}
           </div>
         )}
       </div>
