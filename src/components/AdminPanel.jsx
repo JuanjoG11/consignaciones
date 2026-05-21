@@ -61,17 +61,19 @@ const AdminPanel = ({ user }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const exportToExcel = async () => {
-    if (consignaciones.length === 0) return;
+  const exportToExcel = async (onlyFiltered = false) => {
+    const listToExport = onlyFiltered ? filtered : consignaciones;
+    if (listToExport.length === 0) return;
 
-    const tid = toast.loading('Generando respaldo completo (ZIP)... Esto puede tardar si hay muchas fotos.');
+    const modeLabel = onlyFiltered ? 'Filtrado' : 'Completo';
+    const tid = toast.loading(`Generando respaldo ${modeLabel.toLowerCase()} (ZIP)... Esto puede tardar si hay muchas fotos.`);
 
     try {
       const zip = new JSZip();
       const photosFolder = zip.folder("comprobantes_por_fecha");
 
       // 1. Preparar datos para Excel
-      const data = consignaciones.map(c => ({
+      const data = listToExport.map(c => ({
         Fecha: format(new Date(c.fecha), "yyyy-MM-dd HH:mm"),
         Auxiliar: c.auxiliar_name,
         Banco: c.banco,
@@ -87,10 +89,10 @@ const AdminPanel = ({ user }) => {
       XLSX.utils.book_append_sheet(wb, ws, "Consignaciones");
 
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      zip.file("Reporte_Consignaciones.xlsx", excelBuffer);
+      zip.file(`Reporte_Consignaciones_${modeLabel}.xlsx`, excelBuffer);
 
       // 2. Descargar y organizar fotos
-      const downloadPromises = consignaciones.map(async (c, index) => {
+      const downloadPromises = listToExport.map(async (c, index) => {
         if (!c.file_url) return;
 
         try {
@@ -114,9 +116,9 @@ const AdminPanel = ({ user }) => {
 
       // 3. Generar y guardar el ZIP
       const content = await zip.generateAsync({ type: "blob" });
-      saveAs(content, `Respaldo_Consignaciones_${format(new Date(), "yyyy-MM-dd")}.zip`);
+      saveAs(content, `Respaldo_Consignaciones_${modeLabel}_${format(new Date(), "yyyy-MM-dd")}.zip`);
 
-      toast.success('¡Respaldo ZIP descargado con éxito! 📂', { id: tid });
+      toast.success(`¡Respaldo ZIP ${modeLabel.toLowerCase()} descargado con éxito! 📂`, { id: tid });
     } catch (err) {
       console.error("Error en backup:", err);
       toast.error('Error al generar el respaldo', { id: tid });
@@ -132,7 +134,7 @@ const AdminPanel = ({ user }) => {
     ) : true;
     
     const cDate = new Date(c.fecha);
-    const okStart = dateRange.start ? cDate >= new Date(dateRange.start) : true;
+    const okStart = dateRange.start ? cDate >= new Date(dateRange.start + 'T00:00:00') : true;
     const okEnd   = okEndFunc(cDate, dateRange.end);
     const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
     const okCajera = cajeraFilter ? c.cajera_name === cajeraFilter : true;
@@ -142,7 +144,7 @@ const AdminPanel = ({ user }) => {
 
   function okEndFunc(cDate, end) {
     if (!end) return true;
-    const eDate = new Date(end);
+    const eDate = new Date(end + 'T00:00:00');
     eDate.setHours(23, 59, 59, 999);
     return cDate <= eDate;
   }
@@ -338,15 +340,51 @@ const AdminPanel = ({ user }) => {
             </div>
           )}
 
-          <button
-            className="btn btn-success w-full"
-            style={{ padding: '1.25rem', fontSize: '1rem' }}
-            onClick={exportToExcel}
-            disabled={loading || filtered.length === 0}
-          >
-            <Download size={20} />
-            Descargar Respaldo Completo (ZIP)
-          </button>
+          {filtered.length < consignaciones.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
+              <button
+                className="btn btn-success w-full animate-in"
+                style={{ 
+                  padding: '1rem 1.25rem', 
+                  fontSize: '0.92rem', 
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                  border: 'none', 
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+                  color: '#00120d'
+                }}
+                onClick={() => exportToExcel(true)}
+                disabled={loading || filtered.length === 0}
+              >
+                <Download size={18} />
+                Descargar Filtrado (ZIP · {filtered.length} reg.)
+              </button>
+              <button
+                className="btn btn-ghost w-full"
+                style={{ 
+                  padding: '0.6rem 1.25rem', 
+                  fontSize: '0.8rem', 
+                  borderColor: 'rgba(255,255,255,0.08)', 
+                  color: 'var(--text-3)',
+                  background: 'rgba(255,255,255,0.02)'
+                }}
+                onClick={() => exportToExcel(false)}
+                disabled={loading || consignaciones.length === 0}
+              >
+                <Download size={14} />
+                Descargar Respaldo Completo ({consignaciones.length} reg.)
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-success w-full"
+              style={{ padding: '1.25rem', fontSize: '1rem' }}
+              onClick={() => exportToExcel(false)}
+              disabled={loading || filtered.length === 0}
+            >
+              <Download size={20} />
+              Descargar Respaldo Completo (ZIP)
+            </button>
+          )}
         </div>
 
         {/* Cuadre Diario (Día a Día) */}
