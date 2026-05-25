@@ -86,7 +86,6 @@ export const mockAuth = {
     }
 
     // ── LOGIN CAJERA / ADMIN POR EMAIL + CONTRASEÑA ──────────────────────────
-    // ── LOGIN CAJERA / ADMIN POR EMAIL + CONTRASEÑA ──────────────────────────
     // Intentamos login real primero
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -97,6 +96,10 @@ export const mockAuth = {
         { id: 'cajera-nat',  email: 'nataly@consigcontrol.com',  role: 'cajera', full_name: 'Nataly (Alpina)',  pass: 'Alpina*2026N', empresa: 'ALPINA' },
         { id: 'cajera-cris', email: 'cristina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Zenu)',  pass: 'Zenu*2026C',   empresa: 'ZENU'   },
         { id: 'admin-1',     email: 'gerencia@consigcontrol.com', role: 'admin',  full_name: 'Dirección Operativa', pass: 'Control*2026G' },
+        // New users with swapped companies
+        { id: 'cajera-eli-zenu', email: 'eliana.zenu@consigcontrol.com', role: 'cajera', full_name: 'Eliana (Zenu)', pass: 'Zenu*2026E', empresa: 'ZENU' },
+        { id: 'cajera-nat-zenu', email: 'nataly.zenu@consigcontrol.com', role: 'cajera', full_name: 'Nataly (Zenu)', pass: 'Zenu*2026N', empresa: 'ZENU' },
+        { id: 'cajera-cris-alpina', email: 'cristina.alpina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Alpina)', pass: 'Alpina*2026C', empresa: 'ALPINA' },
       ];
 
       const found = productionUsers.find(u => u.email === email && u.pass === password);
