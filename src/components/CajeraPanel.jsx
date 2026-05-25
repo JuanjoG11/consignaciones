@@ -131,6 +131,7 @@ const CajeraPanel = ({ user }) => {
 
   const pendientes = consignaciones.filter(c => c.estado === 'Pendiente').length;
   const validadasPorCuadrar = consignaciones.filter(c => c.estado === 'Validado').length;
+  const cuadradas = consignaciones.filter(c => c.estado === 'Cuadrado').length;
 
   const money = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
@@ -203,6 +204,16 @@ const CajeraPanel = ({ user }) => {
         <div className="hero-sub">
           {pendientes === 1 ? 'consignación pendiente' : 'consignaciones pendientes'} de validación
           {validadasPorCuadrar > 0 && ` · ${validadasPorCuadrar} por cuadrar`}
+        </div>
+      </div>
+      {/* New card for Cuadrado count */}
+      <div className="hero-card" style={{ background: 'linear-gradient(135deg, #ff9f1c 0%, #ff4d6d 100%)', boxShadow: 'var(--shadow-glow-red)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="hero-label">🟢 Cuadrado</div>
+        </div>
+        <div className="hero-value">{cuadradas}</div>
+        <div className="hero-sub">
+          {cuadradas === 1 ? 'consignación cuadrada' : 'consignaciones cuadradas'}
         </div>
       </div>
 
