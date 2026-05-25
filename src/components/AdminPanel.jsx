@@ -136,8 +136,10 @@ const AdminPanel = ({ user }) => {
   const filtered = consignaciones.filter(c => {
     const okSearch = search ? (
       c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) ||
-      c.numero_comprobante.includes(search)
-    ) : true;
+      c.numero_comprobante.includes(search) ||
+      (c.valor && !isNaN(Number(search)) && Math.abs(c.valor - Number(search)) < 0.01) ||
+      (c.valor && c.valor.toString().includes(search))
+    ) : true
     
     const cDate = new Date(c.fecha);
     const okStart = dateRange.start ? cDate >= new Date(dateRange.start + 'T00:00:00') : true;
