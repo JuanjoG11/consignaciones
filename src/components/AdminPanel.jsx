@@ -62,7 +62,13 @@ const AdminPanel = ({ user }) => {
   }, []);
 
   const exportToExcel = async (onlyFiltered = false) => {
-    const listToExport = onlyFiltered ? filtered : consignaciones;
+    let listToExport;
+    if (onlyFiltered) {
+      listToExport = filtered;
+    } else {
+      // Sólo incluir consignaciones en estado 'Cuadrado' para respaldo completo
+      listToExport = consignaciones.filter(c => c.estado === 'Cuadrado');
+    }
     if (listToExport.length === 0) return;
 
     const modeLabel = onlyFiltered ? 'Filtrado' : 'Completo';
@@ -102,9 +108,9 @@ const AdminPanel = ({ user }) => {
           const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
           const dayFolder = photosFolder.folder(dateStr);
 
-          // Nombre de archivo descriptivo: Auxiliar_Banco_Numero.ext
+          // Nombre de archivo descriptivo: Auxiliar_Banco_Numero_Valor.ext
           const ext = c.file_url.split('.').pop().split('?')[0] || 'png';
-          const safeName = `${c.auxiliar_name.replace(/\s+/g, '_')}_${c.banco.replace(/\s+/g, '_')}_${c.numero_comprobante}.${ext}`;
+          const safeName = `${c.auxiliar_name.replace(/\s+/g, '_')}_${c.banco.replace(/\s+/g, '_')}_${c.numero_comprobante}_${c.valor}.${ext}`;
 
           dayFolder.file(safeName, blob);
         } catch (err) {
