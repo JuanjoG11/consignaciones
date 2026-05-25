@@ -17,7 +17,7 @@ const BANCO_COLORS = {
   'Retención':             { color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', emoji: '📄' },
 };
 
-const ESTADOS = ['Pendiente', 'Validado', 'Rechazado'];
+const ESTADOS = ['Pendiente', 'Validado', 'Cuadrado', 'Rechazado'];
 const BANCOS = ['Bancolombia 6061', 'Davivienda 8703', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
 
 const CajeraPanel = ({ user }) => {
@@ -94,7 +94,7 @@ const CajeraPanel = ({ user }) => {
 
       toast.loading('Actualizando...', { id: tid });
       await mockDB.updateConsignacionStatus(id, estado, motivo, user.id, user.full_name);
-      toast.success(estado === 'Validado' ? '✅ Aprobada' : '❌ Rechazada', { id: tid });
+      toast.success(estado === 'Validado' ? '✅ Aprobada' : estado === 'Cuadrado' ? '✅ Cuadrada' : '❌ Rechazada', { id: tid });
       fetch(true);
       setSelected(null);
     } catch (e) { 
@@ -130,10 +130,61 @@ const CajeraPanel = ({ user }) => {
   }
 
   const pendientes = consignaciones.filter(c => c.estado === 'Pendiente').length;
+  const validadasPorCuadrar = consignaciones.filter(c => c.estado === 'Validado').length;
 
   const money = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
-  const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-valid' : 'badge-rejected';
+  const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-validated' : e === 'Cuadrado' ? 'badge-squared' : 'badge-rejected';
+
+  const renderActionButtons = (isMobile = false) => {
+    const pad = isMobile ? '0.75rem' : '1rem';
+    
+    if (selected.estado === 'Pendiente') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
+          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: pad }}>
+            <XCircle size={18} /> Rechazar
+          </button>
+          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')} style={{ padding: pad }}>
+            <CheckCircle size={18} /> Validar y Aprobar
+          </button>
+        </div>
+      );
+    }
+    
+    if (selected.estado === 'Validado') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
+          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: pad }}>
+            <XCircle size={18} /> Rechazar
+          </button>
+          <button className="btn btn-primary" onClick={() => handleAction(selected.id, 'Cuadrado')} style={{ padding: pad, background: 'var(--gradient-success)', color: '#00120d', boxShadow: 'var(--shadow-glow-green)' }}>
+            <CheckCircle size={18} /> Cuadrar Consignación
+          </button>
+        </div>
+      );
+    }
+    
+    if (selected.estado === 'Rechazado') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
+          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')} style={{ padding: pad }}>
+            <CheckCircle size={18} /> Corregir y Validar
+          </button>
+        </div>
+      );
+    }
+    
+    if (selected.estado === 'Cuadrado') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pad, background: 'rgba(0, 229, 160, 0.08)', border: '1px solid var(--neon-green)', borderRadius: 'var(--radius-sm)', color: 'var(--neon-green)', fontWeight: 700, fontSize: '0.85rem', gap: '0.5rem', marginTop: 'auto' }}>
+          <CheckCircle size={16} /> Consignación cuadrada y conciliada
+        </div>
+      );
+    }
+    
+    return null;
+  };
 
   return (
     <div className="page animate-in">
@@ -149,7 +200,10 @@ const CajeraPanel = ({ user }) => {
           )}
         </div>
         <div className="hero-value">{pendientes}</div>
-        <div className="hero-sub">{pendientes === 1 ? 'consignación pendiente' : 'consignaciones pendientes'} de validación</div>
+        <div className="hero-sub">
+          {pendientes === 1 ? 'consignación pendiente' : 'consignaciones pendientes'} de validación
+          {validadasPorCuadrar > 0 && ` · ${validadasPorCuadrar} por cuadrar`}
+        </div>
       </div>
 
 
@@ -344,18 +398,7 @@ const CajeraPanel = ({ user }) => {
                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: selected.estado === 'Pendiente' ? '1fr 1fr' : '1fr', gap: '1rem', marginTop: 'auto' }}>
-                    {selected.estado !== 'Rechazado' && (
-                      <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: '1rem' }}>
-                        <XCircle size={18} /> Rechazar Consignación
-                      </button>
-                    )}
-                    {selected.estado !== 'Validado' && (
-                      <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')} style={{ padding: '1rem' }}>
-                        <CheckCircle size={18} /> {selected.estado === 'Rechazado' ? 'Corregir y Aprobar' : 'Validar y Aprobar'}
-                      </button>
-                    )}
-                  </div>
+                  {renderActionButtons(false)}
                 </div>
 
                 {/* Evidence */}

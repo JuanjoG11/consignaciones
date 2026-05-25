@@ -706,7 +706,8 @@ const AuxiliarPanel = ({ user }) => {
                     </div>
                     <span className={`badge ${
                       item.estado === 'Pendiente' ? 'badge-pending' : 
-                      item.estado === 'Validado' ? 'badge-valid' : 'badge-rejected'
+                      item.estado === 'Validado' ? 'badge-validated' : 
+                      item.estado === 'Cuadrado' ? 'badge-squared' : 'badge-rejected'
                     }`} style={{ fontSize: '0.6rem', padding: '2px 8px' }}>
                       {item.estado}
                     </span>
@@ -718,7 +719,7 @@ const AuxiliarPanel = ({ user }) => {
                       </p>
                     </div>
                   )}
-                  {item.estado !== 'Validado' && (
+                  {item.estado !== 'Validado' && item.estado !== 'Cuadrado' && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
                       <button
                         type="button"
