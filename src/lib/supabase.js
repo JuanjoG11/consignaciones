@@ -168,8 +168,11 @@ export const mockDB = {
       console.error("Error Supabase:", error);
       return [];
     }
-    // Mapeamos created_at a fecha para compatibilidad con el resto del código
-    return data.map(c => ({ ...c, fecha: c.created_at }));
+    // Mapeamos a fecha priorizando fecha_cuadrado si está en estado Cuadrado
+    return data.map(c => ({
+      ...c,
+      fecha: (c.estado === 'Cuadrado' && c.fecha_cuadrado) ? c.fecha_cuadrado : c.created_at
+    }));
   },
 
   getConsignacionById: async (id) => {
@@ -180,7 +183,10 @@ export const mockDB = {
       .single();
     
     if (error) throw error;
-    return { ...data, fecha: data.created_at };
+    return {
+      ...data,
+      fecha: (data.estado === 'Cuadrado' && data.fecha_cuadrado) ? data.fecha_cuadrado : data.created_at
+    };
   },
 
   // VERIFICAR DUPLICADOS
@@ -246,6 +252,8 @@ export const mockDB = {
     } else if (estado === 'Rechazado') {
       if (motivo) updateData.motivo_rechazo = motivo;
       if (cajera_name) updateData.cajera_name = cajera_name;
+    } else if (estado === 'Cuadrado') {
+      updateData.fecha_cuadrado = new Date().toISOString();
     }
 
     const { error } = await supabase
