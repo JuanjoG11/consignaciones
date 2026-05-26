@@ -64,7 +64,7 @@ const AdminPanel = ({ user }) => {
   const exportToExcel = async (onlyFiltered = false) => {
     let listToExport;
     if (onlyFiltered) {
-      listToExport = filtered;
+      listToExport = filtered.filter(c => c.estado === 'Cuadrado');
     } else {
       // Sólo incluir consignaciones en estado 'Cuadrado' para respaldo completo
       listToExport = consignaciones.filter(c => c.estado === 'Cuadrado');
@@ -142,10 +142,10 @@ const AdminPanel = ({ user }) => {
     ) : true
     
     const cDate = new Date(c.fecha);
-    const okStart = dateRange.start ? cDate >= new Date(dateRange.start + 'T00:00:00') : true;
-    const okEnd   = okEndFunc(cDate, dateRange.end);
-    const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
-    const okCajera = cajeraFilter ? c.cajera_name === cajeraFilter : true;
+    const okStart = (dateRange.start && !search) ? cDate >= new Date(dateRange.start + 'T00:00:00') : true;
+    const okEnd   = !search ? okEndFunc(cDate, dateRange.end) : true;
+    const okEmpresa = (empresaFilter && !search) ? c.empresa === empresaFilter : true;
+    const okCajera = (cajeraFilter && !search) ? c.cajera_name === cajeraFilter : true;
     
     return okSearch && okStart && okEnd && okEmpresa && okCajera;
   });
@@ -160,6 +160,8 @@ const AdminPanel = ({ user }) => {
   const totalValidado = filtered.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
   const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
   const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
+  const filteredCuadradoCount = filtered.filter(c => c.estado === 'Cuadrado').length;
+  const totalCuadradoCount = consignaciones.filter(c => c.estado === 'Cuadrado').length;
 
   const byBank = filtered.filter(c => c.estado === 'Validado').reduce((acc, c) => {
     acc[c.banco] = (acc[c.banco] || 0) + c.valor;
@@ -361,10 +363,10 @@ const AdminPanel = ({ user }) => {
                   color: '#00120d'
                 }}
                 onClick={() => exportToExcel(true)}
-                disabled={loading || filtered.length === 0}
+                disabled={loading || filteredCuadradoCount === 0}
               >
                 <Download size={18} />
-                Descargar Filtrado (ZIP · {filtered.length} reg.)
+                Descargar Filtrado (ZIP · {filteredCuadradoCount} reg.)
               </button>
               <button
                 className="btn btn-ghost w-full"
@@ -376,10 +378,10 @@ const AdminPanel = ({ user }) => {
                   background: 'rgba(255,255,255,0.02)'
                 }}
                 onClick={() => exportToExcel(false)}
-                disabled={loading || consignaciones.length === 0}
+                disabled={loading || totalCuadradoCount === 0}
               >
                 <Download size={14} />
-                Descargar Respaldo Completo ({consignaciones.length} reg.)
+                Descargar Respaldo Completo (ZIP · {totalCuadradoCount} reg.)
               </button>
             </div>
           ) : (
@@ -387,10 +389,10 @@ const AdminPanel = ({ user }) => {
               className="btn btn-success w-full"
               style={{ padding: '1.25rem', fontSize: '1rem' }}
               onClick={() => exportToExcel(false)}
-              disabled={loading || filtered.length === 0}
+              disabled={loading || totalCuadradoCount === 0}
             >
               <Download size={20} />
-              Descargar Respaldo Completo (ZIP)
+              Descargar Respaldo Completo (ZIP · {totalCuadradoCount} reg.)
             </button>
           )}
         </div>

@@ -107,7 +107,7 @@ const CajeraPanel = ({ user }) => {
     .filter(c => user.empresa ? c.empresa === user.empresa : true)
     .filter(c => {
     const okBanco   = bancoFilter  ? c.banco === bancoFilter : true;
-    const okEstado  = estadoFilter ? c.estado === estadoFilter : true;
+    const okEstado  = (estadoFilter && !search) ? c.estado === estadoFilter : true;
     const okSearch  = search ? (
       c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || 
       c.numero_comprobante.includes(search)
@@ -129,9 +129,10 @@ const CajeraPanel = ({ user }) => {
     return cDate <= eDate;
   }
 
-  const pendientes = consignaciones.filter(c => c.estado === 'Pendiente').length;
-  const validadasPorCuadrar = consignaciones.filter(c => c.estado === 'Validado').length;
-  const cuadradas = consignaciones.filter(c => c.estado === 'Cuadrado').length;
+  const companyConsignaciones = consignaciones.filter(c => user.empresa ? c.empresa === user.empresa : true);
+  const pendientes = companyConsignaciones.filter(c => c.estado === 'Pendiente').length;
+  const validadasPorCuadrar = companyConsignaciones.filter(c => c.estado === 'Validado').length;
+  const cuadradas = companyConsignaciones.filter(c => c.estado === 'Cuadrado').length;
 
   const money = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
