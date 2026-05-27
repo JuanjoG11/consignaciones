@@ -159,17 +159,36 @@ export const mockAuth = {
 export const mockDB = {
   // OBTENER CONSIGNACIONES (REAL)
   getConsignaciones: async () => {
-    const { data, error } = await supabase
-      .from('consignaciones')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error("Error Supabase:", error);
-      return [];
+    // Supabase limits responses to 1000 rows by default (server-side max_rows).
+    // We paginate to fetch ALL records.
+    const PAGE_SIZE = 1000;
+    let allData = [];
+    let from = 0;
+    let keepFetching = true;
+
+    while (keepFetching) {
+      const { data, error } = await supabase
+        .from('consignaciones')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.error("Error Supabase:", error);
+        return allData; // return whatever we have so far
+      }
+
+      allData = allData.concat(data);
+
+      if (data.length < PAGE_SIZE) {
+        keepFetching = false; // last page
+      } else {
+        from += PAGE_SIZE;
+      }
     }
+
     // Mapeamos a fecha priorizando fecha_cuadrado si está en estado Cuadrado
-    return data.map(c => ({
+    return allData.map(c => ({
       ...c,
       fecha: (c.estado === 'Cuadrado' && c.fecha_cuadrado) ? c.fecha_cuadrado : c.created_at
     }));

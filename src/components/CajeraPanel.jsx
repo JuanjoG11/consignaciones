@@ -24,7 +24,7 @@ const CajeraPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bancoFilter, setBancoFilter]   = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('Pendiente');
+  const [estadoFilter, setEstadoFilter] = useState('');
   const [search, setSearch]             = useState('');
   const [dateRange, setDateRange]       = useState({ start: '', end: '' });
   const [empresaFilter, setEmpresaFilter] = useState('');
@@ -35,9 +35,12 @@ const CajeraPanel = ({ user }) => {
   const fetch = async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await mockDB.getConsignaciones();
+    console.log(`Fetched ${data.length} consignaciones. Earliest: ${data.length ? new Date(data[data.length - 1].fecha).toISOString() : 'N/A'}, Latest: ${data.length ? new Date(data[0].fecha).toISOString() : 'N/A'}`);
     setConsignaciones(data);
     if (!silent) setLoading(false);
   };
+
+
 
   useEffect(() => {
     fetch();
@@ -102,25 +105,20 @@ const CajeraPanel = ({ user }) => {
       console.error(e);
     }
   };
-
   const filtered = consignaciones
-    .filter(c => user.empresa ? c.empresa === user.empresa : true)
-    .filter(c => {
-    const okBanco   = bancoFilter  ? c.banco === bancoFilter : true;
-    const okEstado  = (estadoFilter && !search) ? c.estado === estadoFilter : true;
-    const okSearch  = search ? (
-      c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || 
-      c.numero_comprobante.includes(search)
-    ) : true;
-    
-    // Filtro por fecha
-    const cDate = new Date(c.fecha);
-    const okStart = dateRange.start ? cDate >= new Date(dateRange.start) : true;
-    const okEnd   = okEndFunc(cDate, dateRange.end);
+  .filter(c => user.empresa ? c.empresa === user.empresa : true)
+  .filter(c => {
+    const okBanco = bancoFilter ? c.banco === bancoFilter : true;
+    const okEstado = (estadoFilter && !search) ? c.estado === estadoFilter : true;
+    const okSearch = search ? (c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || c.numero_comprobante.includes(search)) : true;
+    const cDateStr = c.fecha.split('T')[0];
+    const okStart = dateRange.start ? cDateStr >= dateRange.start : true;
+    const okEnd = dateRange.end ? cDateStr <= dateRange.end : true;
     const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
-    
     return okBanco && okEstado && okSearch && okStart && okEnd && okEmpresa;
   });
+console.log('Date range filter:', dateRange);
+console.log('Filtered consignaciones count:', filtered.length);
 
   function okEndFunc(cDate, end) {
     if (!end) return true;

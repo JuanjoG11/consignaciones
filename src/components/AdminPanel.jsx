@@ -36,6 +36,7 @@ const AdminPanel = ({ user }) => {
   const fetchConsignaciones = async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await mockDB.getConsignaciones();
+    console.log('Fetched consignaciones', data);
     setConsignaciones(data);
     if (!silent) setLoading(false);
   };
@@ -152,21 +153,16 @@ const AdminPanel = ({ user }) => {
         (!isNaN(sNum) && c.valor != null && Math.abs(c.valor - sNum) < 0.01);
     }
     
-    const cDate = new Date(c.fecha);
-    const okStart = (dateRange.start && !s) ? cDate >= new Date(dateRange.start + 'T00:00:00') : true;
-    const okEnd   = !s ? okEndFunc(cDate, dateRange.end) : true;
+    const dateStr = c.fecha ? c.fecha.substring(0, 10) : '';
+    const okStart = (dateRange.start && !s) ? dateStr >= dateRange.start : true;
+    const okEnd   = (dateRange.end && !s)   ? dateStr <= dateRange.end : true;
     const okEmpresa = (empresaFilter && !s) ? c.empresa === empresaFilter : true;
     const okCajera = (cajeraFilter && !s) ? c.cajera_name === cajeraFilter : true;
     
     return okSearch && okStart && okEnd && okEmpresa && okCajera;
   });
 
-  function okEndFunc(cDate, end) {
-    if (!end) return true;
-    const eDate = new Date(end + 'T00:00:00');
-    eDate.setHours(23, 59, 59, 999);
-    return cDate <= eDate;
-  }
+
 
   const totalValidado = filtered.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
   const totalFiltrado = filtered.reduce((a, b) => a + b.valor, 0);
