@@ -64,9 +64,10 @@ const AdminPanel = ({ user }) => {
   const exportToExcel = async (onlyFiltered = false) => {
     let listToExport;
     if (onlyFiltered) {
-      listToExport = filtered.filter(c => c.estado === 'Cuadrado');
+      // Include only Cuadrado consignaciones within selected date range
+      listToExport = filterCuadradoByDateRange();
     } else {
-      // Sólo incluir consignaciones en estado 'Cuadrado' para respaldo completo
+      // Include all Cuadrado consignaciones
       listToExport = consignaciones.filter(c => c.estado === 'Cuadrado');
     }
     if (listToExport.length === 0) return;
@@ -78,7 +79,7 @@ const AdminPanel = ({ user }) => {
       const zip = new JSZip();
       const photosFolder = zip.folder("comprobantes_por_fecha");
 
-      // 1. Preparar datos para Excel
+      // 1. Preparar datos para Excel (solo los filtrados o todos según corresponda)
       const data = listToExport.map(c => ({
         Fecha: format(new Date(c.fecha), "yyyy-MM-dd HH:mm"),
         Auxiliar: c.auxiliar_name,
@@ -133,6 +134,30 @@ const AdminPanel = ({ user }) => {
 
   const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-valid' : 'badge-rejected';
 
+  // Helper to filter Cuadrado consignaciones by current date range (ignoring other filters)
+  function filterCuadradoByDateRange() {
+      if (!dateRange.start) return [];
+      const start = new Date(dateRange.start + 'T00:00:00');
+      start.setHours(0, 0, 0, 0);
+      let end = null;
+      if (dateRange.end) {
+          end = new Date(dateRange.end + 'T00:00:00');
+          end.setHours(23, 59, 59, 999);
+      } else {
+          // default to same day end
+          end = new Date(dateRange.start + 'T00:00:00');
+          end.setHours(23, 59, 59, 999);
+      }
+      return consignaciones.filter(c => {
+          if (c.estado !== 'Cuadrado') return false;
+          const cDate = new Date(c.fecha);
+          if (cDate < start) return false;
+          if (cDate > end) return false;
+          return true;
+      });
+  }
+
+
   const filtered = consignaciones.filter(c => {
     const okSearch = search ? (
       c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -160,7 +185,7 @@ const AdminPanel = ({ user }) => {
   const totalValidado = filtered.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
   const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
   const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
-  const filteredCuadradoCount = filtered.filter(c => c.estado === 'Cuadrado').length;
+  const filteredCuadradoCount = filterCuadradoByDateRange().length;
   const totalCuadradoCount = consignaciones.filter(c => c.estado === 'Cuadrado').length;
 
   const byBank = filtered.filter(c => c.estado === 'Validado').reduce((acc, c) => {
