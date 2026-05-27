@@ -64,8 +64,8 @@ const AdminPanel = ({ user }) => {
   const exportToExcel = async (onlyFiltered = false) => {
     let listToExport;
     if (onlyFiltered) {
-      // Include only Cuadrado consignaciones within selected date range
-      listToExport = filterCuadradoByDateRange();
+      // Include only Cuadrado consignaciones that match active UI filters
+      listToExport = filtered.filter(c => c.estado === 'Cuadrado');
     } else {
       // Include all Cuadrado consignaciones
       listToExport = consignaciones.filter(c => c.estado === 'Cuadrado');
@@ -134,43 +134,29 @@ const AdminPanel = ({ user }) => {
 
   const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-valid' : 'badge-rejected';
 
-  // Helper to filter Cuadrado consignaciones by current date range (ignoring other filters)
-  function filterCuadradoByDateRange() {
-      if (!dateRange.start) return [];
-      const start = new Date(dateRange.start + 'T00:00:00');
-      start.setHours(0, 0, 0, 0);
-      let end = null;
-      if (dateRange.end) {
-          end = new Date(dateRange.end + 'T00:00:00');
-          end.setHours(23, 59, 59, 999);
-      } else {
-          // default to same day end
-          end = new Date(dateRange.start + 'T00:00:00');
-          end.setHours(23, 59, 59, 999);
-      }
-      return consignaciones.filter(c => {
-          if (c.estado !== 'Cuadrado') return false;
-          const cDate = new Date(c.fecha);
-          if (cDate < start) return false;
-          if (cDate > end) return false;
-          return true;
-      });
-  }
-
 
   const filtered = consignaciones.filter(c => {
-    const okSearch = search ? (
-      c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) ||
-      c.numero_comprobante.includes(search) ||
-      (c.valor && !isNaN(Number(search)) && Math.abs(c.valor - Number(search)) < 0.01) ||
-      (c.valor && c.valor.toString().includes(search))
-    ) : true
+    const s = search.trim();
+    let okSearch = true;
+    if (s) {
+      const auxName = (c.auxiliar_name || '').toLowerCase();
+      const comprobante = String(c.numero_comprobante || '');
+      const valorStr = String(c.valor != null ? c.valor : '');
+      const sLower = s.toLowerCase();
+      const sNum = Number(s);
+
+      okSearch =
+        auxName.includes(sLower) ||
+        comprobante.includes(s) ||
+        valorStr.includes(s) ||
+        (!isNaN(sNum) && c.valor != null && Math.abs(c.valor - sNum) < 0.01);
+    }
     
     const cDate = new Date(c.fecha);
-    const okStart = (dateRange.start && !search) ? cDate >= new Date(dateRange.start + 'T00:00:00') : true;
-    const okEnd   = !search ? okEndFunc(cDate, dateRange.end) : true;
-    const okEmpresa = (empresaFilter && !search) ? c.empresa === empresaFilter : true;
-    const okCajera = (cajeraFilter && !search) ? c.cajera_name === cajeraFilter : true;
+    const okStart = (dateRange.start && !s) ? cDate >= new Date(dateRange.start + 'T00:00:00') : true;
+    const okEnd   = !s ? okEndFunc(cDate, dateRange.end) : true;
+    const okEmpresa = (empresaFilter && !s) ? c.empresa === empresaFilter : true;
+    const okCajera = (cajeraFilter && !s) ? c.cajera_name === cajeraFilter : true;
     
     return okSearch && okStart && okEnd && okEmpresa && okCajera;
   });
@@ -183,9 +169,13 @@ const AdminPanel = ({ user }) => {
   }
 
   const totalValidado = filtered.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
+  const totalFiltrado = filtered.reduce((a, b) => a + b.valor, 0);
+  const isSearching = search.trim().length > 0;
+  const heroTotal = isSearching ? totalFiltrado : totalValidado;
+  const heroLabel = isSearching ? 'total encontrado' : 'total validado';
   const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
   const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
-  const filteredCuadradoCount = filterCuadradoByDateRange().length;
+  const filteredCuadradoCount = filtered.filter(c => c.estado === 'Cuadrado').length;
   const totalCuadradoCount = consignaciones.filter(c => c.estado === 'Cuadrado').length;
 
   const byBank = filtered.filter(c => c.estado === 'Validado').reduce((acc, c) => {
@@ -243,16 +233,31 @@ const AdminPanel = ({ user }) => {
     <div className="page animate-in">
       {/* Filters & Search Bar */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center' }}>
-        <div className="search-wrap" style={{ flex: 1, margin: 0 }}>
+        <div className="search-wrap" style={{ flex: 1, margin: 0, position: 'relative' }}>
           <Search size={16} className="search-icon" />
           <input
             type="text"
             className="form-control"
-            style={{ paddingLeft: '2.5rem' }}
-            placeholder="Buscar por auxiliar o número de comprobante..."
+            style={{ paddingLeft: '2.5rem', paddingRight: '4rem' }}
+            placeholder="Buscar por auxiliar, comprobante o valor..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          {/* Show formatted amount when input is numeric */}
+          {/^\d+$/.test(search) && (
+            <span
+              style={{
+                position: 'absolute',
+                right: '0.5rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--neon-green)',
+                fontWeight: 'bold',
+              }}
+            >
+              {money(Number(search))}
+            </span>
+          )}
         </div>
         <button 
           className="btn btn-ghost" 
@@ -341,8 +346,8 @@ const AdminPanel = ({ user }) => {
       {/* Hero */}
       <div className="hero-card" style={{ background: 'linear-gradient(135deg, #9b5cff 0%, #4f8eff 100%)', boxShadow: 'var(--shadow-glow-purple)' }}>
         <div className="hero-label">🛡️ Panel Administrativo</div>
-        <div className="hero-value">{money(totalValidado)}</div>
-        <div className="hero-sub">total validado · {consignaciones.length} registros en sistema</div>
+        <div className="hero-value">{money(heroTotal)}</div>
+        <div className="hero-sub">{heroLabel} · {consignaciones.length} registros en sistema</div>
       </div>
 
       {/* Top section: Metrics and Leaderboard */}
