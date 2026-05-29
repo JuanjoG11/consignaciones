@@ -288,7 +288,7 @@ p  { color: var(--text-2); line-height: 1.6; font-size: 0.875rem; }
 
 /* ─── GLASS CARD ─── */
 .card {
-  background: var(--bg-card);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 1.25rem;
@@ -497,6 +497,15 @@ p  { color: var(--text-2); line-height: 1.6; font-size: 0.875rem; }
 /* ─── FORM ─── */
 .form-section { margin-bottom: 1rem; }
 
+.form-group {
+  margin-bottom: 1rem;
+}
+
+option {
+  background: var(--bg-card);
+  color: var(--text-2);
+}
+
 .form-label {
   display: block;
   font-size: 0.78rem;
@@ -507,13 +516,13 @@ p  { color: var(--text-2); line-height: 1.6; font-size: 0.875rem; }
   margin-bottom: 0.5rem;
 }
 
-.form-control {
+.form-control, input.form-control, select.form-control, textarea.form-control {
   width: 100%;
   padding: 0.875rem 1rem;
   border-radius: var(--radius-sm);
-  background: var(--bg-card);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  color: var(--text-1);
+  color: var(--text-2);
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 0.95rem;
   font-weight: 500;

@@ -30,6 +30,8 @@ const AdminPanel = ({ user }) => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [cajeraFilter, setCajeraFilter] = useState('');
+  const [bancoFilter, setBancoFilter] = useState(''); // New bank filter
+  const [zipByBank, setZipByBank] = useState(false); // Export option
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [showFilters, setShowFilters] = useState(false);
 
@@ -108,13 +110,18 @@ const AdminPanel = ({ user }) => {
           const blob = await response.blob();
 
           const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
-          const dayFolder = photosFolder.folder(dateStr);
+          let destinationFolder;
+          if (zipByBank) {
+            const bankFolder = zip.folder(`banco_${c.banco}`);
+            destinationFolder = bankFolder.folder(dateStr);
+          } else {
+            destinationFolder = photosFolder.folder(dateStr);
+          }
 
-          // Nombre de archivo descriptivo: Auxiliar_Banco_Numero_Valor.ext
           const ext = c.file_url.split('.').pop().split('?')[0] || 'png';
           const safeName = `${c.auxiliar_name.replace(/\s+/g, '_')}_${c.banco.replace(/\s+/g, '_')}_${c.numero_comprobante}_${c.valor}.${ext}`;
 
-          dayFolder.file(safeName, blob);
+          destinationFolder.file(safeName, blob);
         } catch (err) {
           console.error(`Error bajando foto ${c.id}:`, err);
         }
@@ -156,10 +163,11 @@ const AdminPanel = ({ user }) => {
     const dateStr = c.fecha ? c.fecha.substring(0, 10) : '';
     const okStart = (dateRange.start && !s) ? dateStr >= dateRange.start : true;
     const okEnd   = (dateRange.end && !s)   ? dateStr <= dateRange.end : true;
+    const okBanco = (bancoFilter && !s) ? c.banco === bancoFilter : true;
     const okEmpresa = (empresaFilter && !s) ? c.empresa === empresaFilter : true;
     const okCajera = (cajeraFilter && !s) ? c.cajera_name === cajeraFilter : true;
     
-    return okSearch && okStart && okEnd && okEmpresa && okCajera;
+    return okSearch && okStart && okEnd && okBanco && okEmpresa && okCajera;
   });
 
 
@@ -303,16 +311,18 @@ const AdminPanel = ({ user }) => {
             </div>
             <div className="form-group">
               <label className="form-label" style={{ fontSize: '0.72rem' }}>Empresa</label>
-              <select 
-                className="form-control" 
-                value={empresaFilter} 
-                onChange={e => setEmpresaFilter(e.target.value)}
-              >
-                <option value="">Todas</option>
-                <option value="ALPINA">ALPINA</option>
-                <option value="ZENU">ZENU</option>
-                <option value="GENERAL">GENERAL</option>
-              </select>
+            <select
+              className="form-control"
+              value={bancoFilter}
+              onChange={e => setBancoFilter(e.target.value)}
+            >
+              <option value="">Todos los Bancos</option>
+              {[...new Set(consignaciones.map(c => c.banco).filter(Boolean))]
+                .sort()
+                .map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+            </select>
             </div>
             <div className="form-group">
               <label className="form-label" style={{ fontSize: '0.72rem' }}>Cajera</label>
@@ -327,16 +337,30 @@ const AdminPanel = ({ user }) => {
                 ))}
               </select>
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button 
-                className="btn btn-ghost w-full" 
-                onClick={() => { setSearch(''); setDateRange({ start: '', end: '' }); setEmpresaFilter(''); setCajeraFilter(''); }}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
+              <button
+                className="btn btn-ghost w-full"
+                onClick={() => {
+                  setSearch('');
+                  setDateRange({ start: '', end: '' });
+                  setEmpresaFilter('');
+                  setCajeraFilter('');
+                }}
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.8rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
               >
                 Limpiar Búsqueda
               </button>
+              <button
+                className="btn btn-ghost w-full"
+                onClick={() => setZipByBank(prev => !prev)}
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.8rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                {zipByBank ? 'ZIP por Banco' : 'ZIP por Fecha'}
+              </button>
+            </div>
             </div>
           </div>
-        </div>
+ )}
       )}
 
       {/* Hero */}
