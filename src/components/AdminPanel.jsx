@@ -64,9 +64,12 @@ const AdminPanel = ({ user }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const exportToExcel = async (onlyFiltered = false) => {
+  const exportToExcel = async (onlyFiltered = false, includeAll = false) => {
     let listToExport;
-    if (onlyFiltered) {
+    if (includeAll) {
+      // Include all consignaciones that have an uploaded file, regardless of estado
+      listToExport = onlyFiltered ? filtered.filter(c => c.file_url) : consignaciones.filter(c => c.file_url);
+    } else if (onlyFiltered) {
       // Include only Cuadrado consignaciones that match active UI filters
       listToExport = filtered.filter(c => c.estado === 'Cuadrado');
     } else {
@@ -75,7 +78,7 @@ const AdminPanel = ({ user }) => {
     }
     if (listToExport.length === 0) return;
 
-    const modeLabel = onlyFiltered ? 'Filtrado' : 'Completo';
+    const modeLabel = includeAll ? 'Todo' : (onlyFiltered ? 'Filtrado' : 'Completo');
     const tid = toast.loading(`Generando respaldo ${modeLabel.toLowerCase()} (ZIP)... Esto puede tardar si hay muchas fotos.`);
 
     try {
@@ -131,7 +134,7 @@ const AdminPanel = ({ user }) => {
 
       // 3. Generar y guardar el ZIP
       const content = await zip.generateAsync({ type: "blob" });
-      saveAs(content, `Respaldo_Consignaciones_${modeLabel}_${format(new Date(), "yyyy-MM-dd")}.zip`);
+      saveAs(content, `Respaldo_Consignaciones_${modeLabel}_${format(new Date(), "yyyy-MM-dd_HH-mm-ss")}.zip`);
 
       toast.success(`¡Respaldo ZIP ${modeLabel.toLowerCase()} descargado con éxito! 📂`, { id: tid });
     } catch (err) {
@@ -181,6 +184,8 @@ const AdminPanel = ({ user }) => {
   const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
   const filteredCuadradoCount = filtered.filter(c => c.estado === 'Cuadrado').length;
   const totalCuadradoCount = consignaciones.filter(c => c.estado === 'Cuadrado').length;
+  const totalUploadedCount = consignaciones.filter(c => c.file_url).length;
+  const filteredUploadedCount = filtered.filter(c => c.file_url).length;
 
   const byBank = filtered.filter(c => c.estado === 'Validado').reduce((acc, c) => {
     acc[c.banco] = (acc[c.banco] || 0) + c.valor;
@@ -418,6 +423,23 @@ const AdminPanel = ({ user }) => {
                 <Download size={18} />
                 Descargar Filtrado (ZIP · {filteredCuadradoCount} reg.)
               </button>
+
+              <button
+                className="btn btn-ghost w-full"
+                style={{ 
+                  padding: '0.6rem 1.25rem', 
+                  fontSize: '0.8rem', 
+                  borderColor: 'rgba(255,255,255,0.08)', 
+                  color: 'var(--text-3)',
+                  background: 'rgba(255,255,255,0.02)'
+                }}
+                onClick={() => exportToExcel(true, true)}
+                disabled={loading || filteredUploadedCount === 0}
+              >
+                <Download size={14} />
+                Descargar Todo (ZIP · {filteredUploadedCount} reg.)
+              </button>
+
               <button
                 className="btn btn-ghost w-full"
                 style={{ 
@@ -435,15 +457,26 @@ const AdminPanel = ({ user }) => {
               </button>
             </div>
           ) : (
-            <button
-              className="btn btn-success w-full"
-              style={{ padding: '1.25rem', fontSize: '1rem' }}
-              onClick={() => exportToExcel(false)}
-              disabled={loading || totalCuadradoCount === 0}
-            >
-              <Download size={20} />
-              Descargar Respaldo Completo (ZIP · {totalCuadradoCount} reg.)
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
+              <button
+                className="btn btn-success w-full"
+                style={{ padding: '1.25rem', fontSize: '1rem' }}
+                onClick={() => exportToExcel(false)}
+                disabled={loading || totalCuadradoCount === 0}
+              >
+                <Download size={20} />
+                Descargar Respaldo Completo (ZIP · {totalCuadradoCount} reg.)
+              </button>
+              <button
+                className="btn btn-ghost w-full"
+                style={{ padding: '0.8rem 1rem', fontSize: '0.9rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
+                onClick={() => exportToExcel(false, true)}
+                disabled={loading || totalUploadedCount === 0}
+              >
+                <Download size={16} />
+                Descargar Todo (ZIP · {totalUploadedCount} reg.)
+              </button>
+            </div>
           )}
         </div>
 
