@@ -51,6 +51,25 @@ export const AUXILIARES = [
   { cedula: '18519474',   nombre: 'OSCAR MAURICIO RESTREPO MORENO', empresa: 'ALPINA' },
   { cedula: '1088331177', nombre: 'MICHAEL STEVEN HENAO RODRIGUEZ', empresa: 'ALPINA' },
   { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO', empresa: 'ALPINA' },
+  // Auxiliares para el proveedor TAT
+  { cedula: '1099999001', nombre: 'JUAN PÉREZ TAT', empresa: 'TAT' },
+  { cedula: '1099999002', nombre: 'MARÍA GÓMEZ TAT', empresa: 'TAT' },
+  { cedula: '1099999003', nombre: 'PEDRO LÓPEZ TAT', empresa: 'TAT' },
+  { cedula: '75071571',   nombre: 'LUIS ALFONSO RIOS GONZALEZ', empresa: 'TAT' },
+  { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
+  { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'TAT' },
+  { cedula: '1089097145', nombre: 'MANUEL ALEJANDRO RAMIREZ OVALLE', empresa: 'TAT' },
+  { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
+  { cedula: '1094956074', nombre: 'YERFREY FLORES ARROYAVE', empresa: 'TAT' },
+  { cedula: '10030398',   nombre: 'JOHN RAUL GRAJALES CANO', empresa: 'TAT' },
+  { cedula: '1004667097', nombre: 'JUAN GUILLERMO FERNANDEZ GIRALDO', empresa: 'TAT' },
+  { cedula: '1055831421', nombre: 'SAMUEL ANDRES ARIAS ARCILA', empresa: 'TAT' },
+  { cedula: '1004680120', nombre: 'VALENTINA GARCIA GOMEZ', empresa: 'TAT' },
+  { cedula: '80433929',   nombre: 'LINO LOPEZ SIMONS', empresa: 'TAT' },
+  { cedula: '30397740',   nombre: 'LUZ MARINA GUZMAN TORO', empresa: 'TAT' },
+  { cedula: '1004670448', nombre: 'BRANDON ESTIVEN ALZATE GONZALEZ', empresa: 'TAT' },
+  { cedula: '1076350176', nombre: 'DANIELA CASTIBLANCO RAMIREZ', empresa: 'TAT' },
+  { cedula: '1060586518', nombre: 'NELLY YURANNY SALDARRIAGA CAÑAS', empresa: 'TAT' },
   { cedula: '1093220521', nombre: 'JUAN DIEGO FRANCO VERGARA', empresa: 'ALPINA' },
   { cedula: '1112776419', nombre: 'JAMMES ALBERTO RAMIREZ NIETO', empresa: 'ZENU' },
   { cedula: '1098724347', nombre: 'SEBASTIAN SALAZAR HENAO', empresa: 'ZENU' },
@@ -86,28 +105,39 @@ export const mockAuth = {
     }
 
     // ── LOGIN CAJERA / ADMIN POR EMAIL + CONTRASEÑA ──────────────────────────
-    // Intentamos login real primero
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Primero comprobamos una lista local de usuarios de producción (fallback)
+    const productionUsers = [
+      { id: 'cajera-eli',  email: 'eliana@consigcontrol.com',  role: 'cajera', full_name: 'Eliana (Alpina)',  pass: 'Alpina*2026E', empresa: 'ALPINA' },
+      { id: 'cajera-nat',  email: 'nataly@consigcontrol.com',  role: 'cajera', full_name: 'Nataly (Alpina)',  pass: 'Alpina*2026N', empresa: 'ALPINA' },
+      { id: 'cajera-cris', email: 'cristina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Zenu)',  pass: 'Zenu*2026C',   empresa: 'ZENU'   },
+      { id: 'admin-1',     email: 'gerencia@consigcontrol.com', role: 'admin',  full_name: 'Dirección Operativa', pass: 'Control*2026G' },
+      { id: 'admin-az',    email: 'admin@consigcontrol.com',    role: 'admin',  full_name: 'Admin Alpina+Zenu', pass: 'AdminAZ*2026' },
+      { id: 'cajera-eli-zenu', email: 'eliana.zenu@consigcontrol.com', role: 'cajera', full_name: 'Eliana (Zenu)', pass: 'Zenu*2026E', empresa: 'ZENU' },
+      { id: 'cajera-nat-zenu', email: 'nataly.zenu@consigcontrol.com', role: 'cajera', full_name: 'Nataly (Zenu)', pass: 'Zenu*2026N', empresa: 'ZENU' },
+      { id: 'cajera-cris-alpina', email: 'cristina.alpina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Alpina)', pass: 'Alpina*2026C', empresa: 'ALPINA' },
+      { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
+      { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TAT', pass: 'TatAdmin*2026', empresa: 'TAT' },
+    ];
+
+    const foundLocal = productionUsers.find(u => u.email === email && u.pass === password);
+    if (foundLocal) {
+      const { pass, ...userSession } = foundLocal;
+      localStorage.setItem('consignaciones_user', JSON.stringify(userSession));
+      return { user: userSession, error: null };
+    }
+
+    // Si no hay match local, intentamos login real solo si las vars están configuradas
+    let data = null;
+    let error = null;
+    if (supabaseUrl && supabaseKey) {
+      const res = await supabase.auth.signInWithPassword({ email, password });
+      data = res.data;
+      error = res.error;
+    } else {
+      error = { message: 'Supabase environment not configured' };
+    }
 
     if (error) {
-      // Si el login real falla (o Supabase está caído), usamos estos usuarios de producción:
-      const productionUsers = [
-        { id: 'cajera-eli',  email: 'eliana@consigcontrol.com',  role: 'cajera', full_name: 'Eliana (Alpina)',  pass: 'Alpina*2026E', empresa: 'ALPINA' },
-        { id: 'cajera-nat',  email: 'nataly@consigcontrol.com',  role: 'cajera', full_name: 'Nataly (Alpina)',  pass: 'Alpina*2026N', empresa: 'ALPINA' },
-        { id: 'cajera-cris', email: 'cristina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Zenu)',  pass: 'Zenu*2026C',   empresa: 'ZENU'   },
-        { id: 'admin-1',     email: 'gerencia@consigcontrol.com', role: 'admin',  full_name: 'Dirección Operativa', pass: 'Control*2026G' },
-        // New users with swapped companies
-        { id: 'cajera-eli-zenu', email: 'eliana.zenu@consigcontrol.com', role: 'cajera', full_name: 'Eliana (Zenu)', pass: 'Zenu*2026E', empresa: 'ZENU' },
-        { id: 'cajera-nat-zenu', email: 'nataly.zenu@consigcontrol.com', role: 'cajera', full_name: 'Nataly (Zenu)', pass: 'Zenu*2026N', empresa: 'ZENU' },
-        { id: 'cajera-cris-alpina', email: 'cristina.alpina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Alpina)', pass: 'Alpina*2026C', empresa: 'ALPINA' },
-      ];
-
-      const found = productionUsers.find(u => u.email === email && u.pass === password);
-      if (found) {
-        const { pass, ...userSession } = found; // No guardamos la pass en el estado
-        localStorage.setItem('consignaciones_user', JSON.stringify(userSession));
-        return { user: userSession, error: null };
-      }
       return { user: null, error: { message: 'Credenciales inválidas' } };
     }
 

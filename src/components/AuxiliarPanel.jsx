@@ -26,6 +26,25 @@ const BANCOS_PRIMARY = [
     emoji: '🔴',
     value: 'Davivienda 8703',
   },
+  // Bancos para TAT
+  {
+    id: 'bancolombia_tat',
+    label: 'Bancolombia TAT 4247',
+    sub: 'Cta. 4247',
+    color: '#ffd166',
+    bg: 'rgba(255,209,102,0.12)',
+    emoji: '🟡',
+    value: 'Bancolombia TAT 4247',
+  },
+  {
+    id: 'davivienda_tat',
+    label: 'DAVIVIENDA TAT 8283',
+    sub: 'Cta. 8283',
+    color: '#ff4d6d',
+    bg: 'rgba(255,77,109,0.12)',
+    emoji: '🔴',
+    value: 'DAVIVIENDA TAT 8283',
+  },
   {
     id: 'alpina',
     label: 'Alpina',
@@ -48,6 +67,15 @@ const BANCOS_PRIMARY = [
     bg: 'rgba(0,229,160,0.12)',
     emoji: '📬',
     value: 'Buzón',
+  },
+  {
+    id: 'buzon_atlas',
+    label: 'Buzon Atlas',
+    sub: 'Depósito buzón Atlas',
+    color: '#00e5a0',
+    bg: 'rgba(0,229,160,0.12)',
+    emoji: '📬',
+    value: 'Buzon Atlas',
   },
   {
     id: 'nutresa',
@@ -430,6 +458,7 @@ const AuxiliarPanel = ({ user }) => {
             .filter(b => {
               if (user.empresa === 'ZENU') return b.id !== 'alpina';
               if (user.empresa === 'ALPINA') return b.id !== 'nutresa';
+              if (user.empresa === 'TAT') return ['bancolombia_tat','davivienda_tat','buzon_atlas','gasto','retencion'].includes(b.id);
               return true;
             })
             .map(b => {

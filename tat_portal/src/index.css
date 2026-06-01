@@ -1,0 +1,9 @@
+/* Minimal CSS copied from parent project to preserve look */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+:root{--bg-base:#060612;--bg-surface:#0d0d1f;--bg-card:rgba(255,255,255,0.04);--neon-blue:#4f8eff;--neon-green:#00e5a0;--neon-purple:#9b5cff;--text-1:#f0f0ff;--text-2:#8888aa;--border:rgba(255,255,255,0.07);--radius-md:16px}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg-base);color:var(--text-1);min-height:100vh}
+.app-shell{display:flex;flex-direction:column;min-height:100vh}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:1rem;border-bottom:1px solid var(--border);backdrop-filter:blur(6px)}
+.app-content{flex:1;padding:1rem;max-width:1200px;margin:0 auto}
+.mobile-container{max-width:480px;margin:0 auto}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:1rem}

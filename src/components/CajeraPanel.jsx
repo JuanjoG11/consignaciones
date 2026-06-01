@@ -15,10 +15,14 @@ const BANCO_COLORS = {
   'Servicios Nutresa Cárnicos': { color: '#9b5cff', bg: 'rgba(155,92,255,0.15)', emoji: '🥩' },
   'Gasto':                 { color: '#ff9f1c', bg: 'rgba(255,159,28,0.15)',  emoji: '💸' },
   'Retención':             { color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', emoji: '📄' },
+  // TAT banks
+  'Bancolombia TAT 4247':  { color: '#ffd166', bg: 'rgba(255,209,102,0.15)', emoji: '🟡' },
+  'DAVIVIENDA TAT 8283':   { color: '#ff4d6d', bg: 'rgba(255,77,109,0.15)',  emoji: '🔴' },
+  'Buzon Atlas':           { color: '#00e5a0', bg: 'rgba(0,229,160,0.15)',   emoji: '📬' },
 };
 
 const ESTADOS = ['Pendiente', 'Validado', 'Cuadrado', 'Rechazado'];
-const BANCOS = ['Bancolombia 6061', 'Davivienda 8703', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
+const BANCOS = ['Bancolombia 6061', 'Davivienda 8703', 'Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Buzon Atlas', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
 
 const CajeraPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
@@ -31,6 +35,19 @@ const CajeraPanel = ({ user }) => {
   const [selected, setSelected]         = useState(null);
   const [showFilters, setShowFilters]   = useState(false);
   const [prevPendientes, setPrevPendientes] = useState(0);
+
+  // DEBUG: inspeccionar estado crudo cuando se selecciona una consignación
+  useEffect(() => {
+    if (selected) {
+      try {
+        console.log('DEBUG selected.estado raw:', selected.estado, 'typeof:', typeof selected.estado, 'repr:', JSON.stringify(selected.estado));
+      } catch (e) {
+        console.log('DEBUG selected.estado (stringify failed)', selected.estado);
+      }
+    }
+  }, [selected]);
+
+  const [rejectModal, setRejectModal] = useState({ open: false, id: null, motivo: '' });
 
   const fetch = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -74,11 +91,21 @@ const CajeraPanel = ({ user }) => {
     };
   }, [user.empresa]);
 
-  const handleAction = async (id, estado) => {
+  const handleAction = async (id, estado, motivoParam = null) => {
     let motivo = null;
     if (estado === 'Rechazado') {
-      motivo = prompt('Motivo del rechazo:');
-      if (!motivo) return;
+      if (motivoParam) {
+        motivo = motivoParam;
+      } else {
+        try {
+          motivo = prompt('Motivo del rechazo:');
+        } catch (err) {
+          // prompt not supported in this environment -> open internal modal
+          setRejectModal({ open: true, id, motivo: '' });
+          return;
+        }
+        if (!motivo) return;
+      }
     }
     const tid = toast.loading('Verificando estado...');
     try {
@@ -105,11 +132,27 @@ const CajeraPanel = ({ user }) => {
       console.error(e);
     }
   };
+
+  const confirmReject = async () => {
+    if (!rejectModal.id) return;
+    const motivo = String(rejectModal.motivo || '').trim();
+    if (!motivo) {
+      toast.error('Ingrese el motivo del rechazo');
+      return;
+    }
+    setRejectModal(prev => ({ ...prev, open: false }));
+    await handleAction(rejectModal.id, 'Rechazado', motivo);
+    setRejectModal({ open: false, id: null, motivo: '' });
+  };
   const filtered = consignaciones
   .filter(c => user.empresa ? c.empresa === user.empresa : true)
   .filter(c => {
     const okBanco = bancoFilter ? c.banco === bancoFilter : true;
-    const okEstado = (estadoFilter && !search) ? c.estado === estadoFilter : true;
+    const est = String(c.estado || '').trim().toLowerCase();
+    let okEstado;
+    if (estadoFilter && !search) okEstado = est === String(estadoFilter).trim().toLowerCase();
+    else if (user && user.role === 'cajera') okEstado = est === 'pendiente' || est === 'validado' || est === 'cuadrado';
+    else okEstado = true;
     const okSearch = search ? (c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || c.numero_comprobante.includes(search)) : true;
     const cDateStr = c.fecha.split('T')[0];
     const okStart = dateRange.start ? cDateStr >= dateRange.start : true;
@@ -128,18 +171,22 @@ console.log('Filtered consignaciones count:', filtered.length);
   }
 
   const companyConsignaciones = consignaciones.filter(c => user.empresa ? c.empresa === user.empresa : true);
-  const pendientes = companyConsignaciones.filter(c => c.estado === 'Pendiente').length;
-  const validadasPorCuadrar = companyConsignaciones.filter(c => c.estado === 'Validado').length;
-  const cuadradas = companyConsignaciones.filter(c => c.estado === 'Cuadrado').length;
+  const pendientes = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'pendiente').length;
+  const validadasPorCuadrar = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'validado').length;
+  const cuadradas = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'cuadrado').length;
 
   const money = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
-  const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-validated' : e === 'Cuadrado' ? 'badge-squared' : 'badge-rejected';
+  const badgeClass = (e) => {
+    const v = String(e || '').trim().toLowerCase();
+    return v === 'pendiente' ? 'badge-pending' : v === 'validado' ? 'badge-validated' : v === 'cuadrado' ? 'badge-squared' : 'badge-rejected';
+  };
 
   const renderActionButtons = (isMobile = false) => {
     const pad = isMobile ? '0.75rem' : '1rem';
     
-    if (selected.estado === 'Pendiente') {
+    const selState = String(selected.estado || '').trim().toLowerCase();
+    if (selState === 'pendiente') {
       return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
           <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: pad }}>
@@ -152,7 +199,7 @@ console.log('Filtered consignaciones count:', filtered.length);
       );
     }
     
-    if (selected.estado === 'Validado') {
+    if (selState === 'validado') {
       return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
           <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: pad }}>
@@ -165,7 +212,7 @@ console.log('Filtered consignaciones count:', filtered.length);
       );
     }
     
-    if (selected.estado === 'Rechazado') {
+    if (selState === 'rechazado') {
       return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
           <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')} style={{ padding: pad }}>
@@ -175,7 +222,7 @@ console.log('Filtered consignaciones count:', filtered.length);
       );
     }
     
-    if (selected.estado === 'Cuadrado') {
+    if (selState === 'cuadrado') {
       return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pad, background: 'rgba(0, 229, 160, 0.08)', border: '1px solid var(--neon-green)', borderRadius: 'var(--radius-sm)', color: 'var(--neon-green)', fontWeight: 700, fontSize: '0.85rem', gap: '0.5rem', marginTop: 'auto' }}>
           <CheckCircle size={16} /> Consignación cuadrada y conciliada
@@ -315,6 +362,25 @@ console.log('Filtered consignaciones count:', filtered.length);
           </div>
         </div>
       )}
+
+        {/* Internal Reject Modal (fallback when prompt() unsupported) */}
+        {rejectModal.open && (
+          <div className="modal-overlay" onClick={() => setRejectModal({ open: false, id: null, motivo: '' })}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.1rem' }}>Motivo del rechazo</h2>
+                <button className="btn btn-ghost btn-icon" onClick={() => setRejectModal({ open: false, id: null, motivo: '' })}><X size={20} /></button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <textarea value={rejectModal.motivo} onChange={e => setRejectModal(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Describe el motivo del rechazo" style={{ width: '100%', minHeight: 120, padding: '0.75rem' }} />
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <button className="btn btn-ghost" onClick={() => setRejectModal({ open: false, id: null, motivo: '' })}>Cancelar</button>
+                  <button className="btn btn-danger" onClick={confirmReject}>Confirmar Rechazo</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Split Layout container */}
       <div className="cajera-split-layout">
@@ -482,16 +548,44 @@ console.log('Filtered consignaciones count:', filtered.length);
                     <img src={selected.file_url} style={{ width: '100%', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: (selected.estado === 'Pendiente') ? '1fr 1fr' : '1fr', gap: '0.75rem', marginTop: '1rem' }}>
-                    {selected.estado !== 'Rechazado' && (
-                      <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')}>Rechazar</button>
-                    )}
-                    {selected.estado !== 'Validado' && (
-                      <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')}>
-                        {selected.estado === 'Rechazado' ? 'Corregir y Aprobar' : 'Validar'}
-                      </button>
-                    )}
-                  </div>
+                  {(() => {
+                    const selState = String(selected.estado || '').trim().toLowerCase();
+                    if (selState === 'pendiente') {
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '1rem' }}>
+                          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')}>Rechazar</button>
+                          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')}>Validar</button>
+                        </div>
+                      );
+                    }
+
+                    if (selState === 'validado') {
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '1rem' }}>
+                          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')}>Rechazar</button>
+                          <button className="btn btn-primary" onClick={() => handleAction(selected.id, 'Cuadrado')}>Cuadrar Consignación</button>
+                        </div>
+                      );
+                    }
+
+                    if (selState === 'rechazado') {
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', marginTop: '1rem' }}>
+                          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')}>Corregir y Aprobar</button>
+                        </div>
+                      );
+                    }
+
+                    if (selState === 'cuadrado') {
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.75rem', background: 'rgba(0, 229, 160, 0.08)', border: '1px solid var(--neon-green)', borderRadius: 'var(--radius-sm)', color: 'var(--neon-green)', fontWeight: 700 }}>
+                          <CheckCircle size={16} /> Consignación cuadrada y conciliada
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()}
                 </div>
               </div>
             </div>
