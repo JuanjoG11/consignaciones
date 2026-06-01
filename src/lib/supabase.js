@@ -49,6 +49,7 @@ export const AUXILIARES = [
   { cedula: '1006128361', nombre: 'CAMILO LEANDRO GUECHE PEÑA', empresa: 'ALPINA' },
   { cedula: '10027683',   nombre: 'GERMAN GALVEZ CORTES', empresa: 'ALPINA' },
   { cedula: '18519474',   nombre: 'OSCAR MAURICIO RESTREPO MORENO', empresa: 'ALPINA' },
+  { cedula: '1025880670', nombre: 'JOHAN STIVEN MUÑOZ RUIZ', empresa: 'ALPINA' },
   { cedula: '1088331177', nombre: 'MICHAEL STEVEN HENAO RODRIGUEZ', empresa: 'ALPINA' },
   { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO', empresa: 'ALPINA' },
   // Auxiliares para el proveedor TAT

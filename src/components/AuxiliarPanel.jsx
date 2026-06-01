@@ -421,6 +421,8 @@ const AuxiliarPanel = ({ user }) => {
     // Usuarios ZENU no deben ver opciones Alpina
     if (user && user.empresa === 'ZENU') {
       if (id === 'alpina' || value.includes('alpina')) return false;
+      // Evitar mostrar dos entradas de buzón para ZENU: ocultar 'Buzon Atlas'
+      if (id === 'buzon_atlas' || value.includes('buzon atlas')) return false;
     }
 
     // Por defecto, ocultar bancos TAT a quien no sea TAT
