@@ -398,6 +398,37 @@ const AuxiliarPanel = ({ user }) => {
 
   const today = new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+  // Filtrar bancos visibles según la empresa del usuario:
+  // - Si user.empresa === 'TAT' mostrar solo bancos TAT seleccionados
+  // - Si ALPINA ocultar 'nutresa'
+  // - Si ZENU ocultar opción 'Alpina'
+  // - En general ocultar bancos marcados como TAT para quien no sea TAT
+  const visiblePrimary = BANCOS_PRIMARY.filter(b => {
+    const id = String(b.id || '').toLowerCase();
+    const value = String(b.value || '').toLowerCase();
+    const isTat = id.includes('tat') || value.includes('tat');
+
+    if (user && user.empresa === 'TAT') {
+      // Para TAT, mostrar solo un subconjunto seguro (evita mostrar Alpina/Nutresa)
+      return ['bancolombia_tat', 'davivienda_tat', 'buzon_atlas', 'gasto', 'retencion'].includes(id) || value.includes('tat');
+    }
+
+    // Usuarios ALPINA no deben ver 'nutresa'
+    if (user && user.empresa === 'ALPINA') {
+      if (id === 'nutresa' || value.includes('nutresa')) return false;
+    }
+
+    // Usuarios ZENU no deben ver opciones Alpina
+    if (user && user.empresa === 'ZENU') {
+      if (id === 'alpina' || value.includes('alpina')) return false;
+    }
+
+    // Por defecto, ocultar bancos TAT a quien no sea TAT
+    if (isTat) return false;
+
+    return true;
+  });
+
   return (
     <div className="page animate-in">
       {/* Hero */}
@@ -454,14 +485,7 @@ const AuxiliarPanel = ({ user }) => {
       {/* Selector primario */}
       {!showSub && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', marginBottom: '1.25rem' }}>
-          {BANCOS_PRIMARY
-            .filter(b => {
-              if (user.empresa === 'ZENU') return b.id !== 'alpina';
-              if (user.empresa === 'ALPINA') return b.id !== 'nutresa';
-              if (user.empresa === 'TAT') return ['bancolombia_tat','davivienda_tat','buzon_atlas','gasto','retencion'].includes(b.id);
-              return true;
-            })
-            .map(b => {
+          {visiblePrimary.map(b => {
             const isSelected = primarySelected?.id === b.id;
             return (
               <button

@@ -22,7 +22,7 @@ const BANCO_COLORS = {
 };
 
 const ESTADOS = ['Pendiente', 'Validado', 'Cuadrado', 'Rechazado'];
-const BANCOS = ['Bancolombia 6061', 'Davivienda 8703', 'Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Buzon Atlas', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
+const BANCOS_FULL = ['Bancolombia 6061', 'Davivienda 8703', 'Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Buzon Atlas', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
 
 const CajeraPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
@@ -56,6 +56,24 @@ const CajeraPanel = ({ user }) => {
     setConsignaciones(data);
     if (!silent) setLoading(false);
   };
+
+  // Bancos visibles según la empresa del usuario
+  const visibleBancos = (() => {
+    if (!user || !user.empresa) return BANCOS_FULL.filter(b => !String(b).toLowerCase().includes('tat'));
+    const company = String(user.empresa).toUpperCase();
+    if (company === 'TAT') {
+      // Mostrar solo bancos TAT para usuarios TAT
+      return BANCOS_FULL.filter(b => String(b).toLowerCase().includes('tat'));
+    }
+    let list = BANCOS_FULL.slice();
+    // Ocultar bancos TAT a quienes no son TAT
+    list = list.filter(b => !String(b).toLowerCase().includes('tat'));
+    // Ocultar 'Servicios Nutresa Cárnicos' a ALPINA
+    if (company === 'ALPINA') list = list.filter(b => !String(b).toLowerCase().includes('nutresa'));
+    // Ocultar cuentas Alpina a ZENU
+    if (company === 'ZENU') list = list.filter(b => !String(b).toLowerCase().includes('alpina'));
+    return list;
+  })();
 
 
 
@@ -327,7 +345,7 @@ console.log('Filtered consignaciones count:', filtered.length);
                 onChange={e => setBancoFilter(e.target.value)}
               >
                 <option value="">Todos los bancos</option>
-                {BANCOS.map(b => <option key={b} value={b}>{b}</option>)}
+                {visibleBancos.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             {/* Empresa */}
