@@ -168,9 +168,15 @@ const CajeraPanel = ({ user }) => {
     const okBanco = bancoFilter ? c.banco === bancoFilter : true;
     const est = String(c.estado || '').trim().toLowerCase();
     let okEstado;
-    if (estadoFilter && !search) okEstado = est === String(estadoFilter).trim().toLowerCase();
-    else if (user && user.role === 'cajera') okEstado = est === 'pendiente' || est === 'validado' || est === 'cuadrado';
-    else okEstado = true;
+    if (estadoFilter) {
+      // Apply selected state filter regardless of search input
+      okEstado = est === String(estadoFilter).trim().toLowerCase();
+    } else if (user && user.role === 'cajera') {
+      // Cajera view without a specific filter includes all four states
+      okEstado = ['pendiente', 'validado', 'cuadrado', 'rechazado'].includes(est);
+    } else {
+      okEstado = true;
+    }
     const okSearch = search ? (c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || c.numero_comprobante.includes(search)) : true;
     const cDateStr = c.fecha.split('T')[0];
     const okStart = dateRange.start ? cDateStr >= dateRange.start : true;
