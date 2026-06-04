@@ -35,6 +35,21 @@ const AdminPanel = ({ user }) => {
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [showFilters, setShowFilters] = useState(false);
 
+  // Helper to set date range for a given month (June or May)
+  const setMonthRange = (month) => {
+    const year = new Date().getFullYear();
+    const monthIdx = month === 'June' ? 5 : 4; // June=5, May=4 (0-indexed)
+    const start = `${year}-${String(monthIdx + 1).padStart(2, '0')}-01`;
+    const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+    const end = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${daysInMonth}`;
+    setDateRange({ start, end });
+  };
+
+  // Set default to June on mount
+  useEffect(() => {
+    setMonthRange('June');
+  }, []);
+
   const fetchConsignaciones = async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await mockDB.getConsignaciones();
@@ -366,16 +381,15 @@ const AdminPanel = ({ user }) => {
               </button>
               <button
                 className="btn btn-ghost w-full"
-                onClick={() => setZipByBank(prev => !prev)}
+                onClick={() => setMonthRange('May')}
                 style={{ padding: '0.6rem 1.25rem', fontSize: '0.8rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
               >
-                {zipByBank ? 'ZIP por Banco' : 'ZIP por Fecha'}
+                Ver historial de Mayo
               </button>
             </div>
             </div>
           </div>
  )}
-      )}
 
       {/* Hero */}
       <div className="hero-card" style={{ background: 'linear-gradient(135deg, #9b5cff 0%, #4f8eff 100%)', boxShadow: 'var(--shadow-glow-purple)' }}>
@@ -383,6 +397,26 @@ const AdminPanel = ({ user }) => {
         <div className="hero-value">{money(heroTotal)}</div>
         <div className="hero-sub">{heroLabel} · {consignaciones.length} registros en sistema</div>
       </div>
+
+          {/* Sección de datos por mes */}
+          <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
+            {/* Datos de Junio */}
+            <div className="card" style={{ flex: 1, padding: '1rem' }}>
+              <h3 style={{ marginBottom: '0.5rem' }}>Datos de Junio</h3>
+              <p>Total consignaciones: {consignaciones.filter(c => {
+                const d = new Date(c.fecha);
+                return d.getMonth() === 5; // Junio (0-indexed)
+              }).length}</p>
+            </div>
+            {/* Histórico de Mayo */}
+            <div className="card" style={{ flex: 1, padding: '1rem' }}>
+              <h3 style={{ marginBottom: '0.5rem' }}>Histórico de Mayo</h3>
+              <p>Total consignaciones: {consignaciones.filter(c => {
+                const d = new Date(c.fecha);
+                return d.getMonth() === 4; // Mayo
+              }).length}</p>
+            </div>
+          </div>
 
       {/* Top section: Metrics and Leaderboard */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
