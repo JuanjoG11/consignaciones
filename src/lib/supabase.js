@@ -80,6 +80,10 @@ export const AUXILIARES = [
   { cedula: '1006296150', nombre: 'JHONATAN MENA GALLEGO', empresa: 'ZENU' },
   { cedula: '10005257',   nombre: 'OSCAR MAURICIO GUARUMO CLAVIJO', empresa: 'ZENU' },
   { cedula: '1004701171', nombre: 'JUAN SEBASTIAN TAMAYO PULGARIN', empresa: 'ZENU' },
+  // TYM registrado para ambas empresas
+  { cedula: '900973932',  nombre: 'TYM', empresa: 'ALPINA' },
+  { cedula: '900973932',  nombre: 'TYM', empresa: 'ZENU' },
+  { cedula: '901568117',  nombre: 'tat aux', empresa: 'TAT' },
 ];
 
 export const mockAuth = {
@@ -87,15 +91,15 @@ export const mockAuth = {
    * signIn para Auxiliar: pasar { cedula } en lugar de email/password.
    * signIn para Cajera/Admin: pasar email + password normales.
    */
-  signIn: async (email, password, cedula = null) => {
+  signIn: async (email, password, cedula = null, empresa = null) => {
     // ── LOGIN AUXILIAR POR CÉDULA ────────────────────────────────────────────
     if (cedula) {
-      const aux = AUXILIARES.find(a => a.cedula === cedula.trim());
+      const aux = AUXILIARES.find(a => a.cedula === cedula.trim() && (empresa ? a.empresa === empresa : true));
       if (!aux) {
         return { user: null, error: { message: 'Cédula no registrada en el sistema' } };
       }
       const user = {
-        id: `aux_${aux.cedula}`,
+        id: `aux_${aux.cedula}_${aux.empresa || 'GENERAL'}`,
         cedula: aux.cedula,
         role: 'auxiliar',
         full_name: aux.nombre,
@@ -167,7 +171,7 @@ export const mockAuth = {
     
     // Auto-reparar sesiones viejas de auxiliares sin empresa correcta
     if (user.role === 'auxiliar') {
-      const aux = AUXILIARES.find(a => a.cedula === user.cedula);
+      const aux = AUXILIARES.find(a => a.cedula === user.cedula && (user.empresa ? a.empresa === user.empresa : true));
       if (aux) {
         let needsUpdate = false;
         if (user.empresa !== aux.empresa) {

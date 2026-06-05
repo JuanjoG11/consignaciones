@@ -16,6 +16,7 @@ const Login = ({ onLogin }) => {
 
   // Auxiliar
   const [cedula, setCedula]   = useState('');
+  const [selectedEmpresa, setSelectedEmpresa] = useState('');
 
   // Cajera / Admin
   const [email, setEmail]       = useState('');
@@ -30,16 +31,31 @@ const Login = ({ onLogin }) => {
     setCedula('');
     setEmail('');
     setPassword('');
+    setSelectedEmpresa('');
   };
 
   // ── Submit Auxiliar ───────────────────────────────────────────────────────
   const handleAuxiliarSubmit = async (e) => {
     e.preventDefault();
     if (!cedula.trim()) { setError('Ingresa tu número de cédula'); return; }
+    
+    const matches = AUXILIARES.filter(a => a.cedula === cedula.trim());
+    if (matches.length === 0) {
+      setError('Cédula no registrada en el sistema');
+      return;
+    }
+    
+    if (matches.length > 1 && !selectedEmpresa) {
+      setError('Por favor selecciona la empresa con la que ingresarás');
+      return;
+    }
+    
+    const targetEmpresa = matches.length > 1 ? selectedEmpresa : matches[0].empresa;
+    
     setLoading(true);
     setError('');
     try {
-      const { user, error } = await mockAuth.signIn(null, null, cedula.trim());
+      const { user, error } = await mockAuth.signIn(null, null, cedula.trim(), targetEmpresa);
       if (error) setError(error.message);
       else if (user) onLogin(user);
     } catch {
@@ -144,19 +160,54 @@ const Login = ({ onLogin }) => {
                   className="form-control"
                   placeholder="Ej. 1088253407"
                   value={cedula}
-                  onChange={e => { setCedula(e.target.value); setError(''); }}
+                  onChange={e => { setCedula(e.target.value); setError(''); setSelectedEmpresa(''); }}
                   autoFocus
                   style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '0.05em' }}
                 />
                 {/* Mini vista previa del nombre si la cédula ya coincide */}
                 {cedula.trim() && (() => {
-                  const found = AUXILIARES.find(a => a.cedula === cedula.trim());
-                  return found ? (
-                    <div style={{ marginTop: '0.5rem', padding: '0.6rem 0.875rem', background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.25)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '1rem' }}>✅</span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--neon-green)' }}>{found.nombre}</span>
-                    </div>
-                  ) : null;
+                  const matches = AUXILIARES.filter(a => a.cedula === cedula.trim());
+                  if (matches.length === 1) {
+                    return (
+                      <div style={{ marginTop: '0.5rem', padding: '0.6rem 0.875rem', background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.25)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '1rem' }}>✅</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--neon-green)' }}>{matches[0].nombre} ({matches[0].empresa})</span>
+                      </div>
+                    );
+                  } else if (matches.length > 1) {
+                    return (
+                      <div style={{ marginTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', fontWeight: 700, textAlign: 'left', margin: 0 }}>
+                          👋 Hola {matches[0].nombre}. Selecciona tu empresa actual:
+                        </p>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {matches.map(m => (
+                            <button
+                              key={m.empresa}
+                              type="button"
+                              onClick={() => { setSelectedEmpresa(m.empresa); setError(''); }}
+                              style={{
+                                flex: 1,
+                                padding: '0.6rem',
+                                borderRadius: 'var(--radius-sm)',
+                                background: selectedEmpresa === m.empresa ? 'rgba(79,142,255,0.15)' : 'rgba(255,255,255,0.03)',
+                                border: `1px solid ${selectedEmpresa === m.empresa ? 'var(--neon-blue)' : 'var(--border)'}`,
+                                color: selectedEmpresa === m.empresa ? 'var(--neon-blue)' : 'var(--text-2)',
+                                fontWeight: 800,
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                textAlign: 'center'
+                              }}
+                            >
+                              {m.empresa}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
                 })()}
               </div>
 
