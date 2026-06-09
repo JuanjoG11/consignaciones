@@ -52,6 +52,7 @@ export const AUXILIARES = [
   { cedula: '1025880670', nombre: 'JOHAN STIVEN MUÑOZ RUIZ', empresa: 'ALPINA' },
   { cedula: '1088331177', nombre: 'MICHAEL STEVEN HENAO RODRIGUEZ', empresa: 'ALPINA' },
   { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO', empresa: 'ALPINA' },
+  { cedula: '1064310724', nombre: 'JUAN JOSE CONTRERAS', empresa: 'ALPINA' },
   // Auxiliares para el proveedor TAT
   { cedula: '1099999001', nombre: 'JUAN PÉREZ TAT', empresa: 'TAT' },
   { cedula: '1099999002', nombre: 'MARÍA GÓMEZ TAT', empresa: 'TAT' },
