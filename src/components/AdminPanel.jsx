@@ -23,6 +23,9 @@ const BANCO_COLORS = {
   'Retención': '#94a3b8',
 };
 
+const KNOWN_BANCOS_TAT = ['Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Buzon Atlas', 'Gasto', 'Retención'];
+const KNOWN_BANCOS_GENERAL = ['Bancolombia 6061', 'Davivienda 8703', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
+
 const AdminPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -188,11 +191,11 @@ const AdminPanel = ({ user }) => {
     }
     
     const dateStr = c.fecha ? c.fecha.substring(0, 10) : '';
-    const okStart = (dateRange.start && !s) ? dateStr >= dateRange.start : true;
-    const okEnd   = (dateRange.end && !s)   ? dateStr <= dateRange.end : true;
-    const okBanco = (bancoFilter && !s) ? c.banco === bancoFilter : true;
-    const okEmpresa = (empresaFilter && !s) ? c.empresa === empresaFilter : true;
-    const okCajera = (cajeraFilter && !s) ? c.cajera_name === cajeraFilter : true;
+    const okStart = dateRange.start ? dateStr >= dateRange.start : true;
+    const okEnd   = dateRange.end   ? dateStr <= dateRange.end : true;
+    const okBanco = bancoFilter ? (c.banco && c.banco.trim().toLowerCase() === bancoFilter.trim().toLowerCase()) : true;
+    const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
+    const okCajera = cajeraFilter ? c.cajera_name === cajeraFilter : true;
     
     return okSearch && okStart && okEnd && okBanco && okEmpresa && okCajera;
   });
@@ -339,14 +342,17 @@ const AdminPanel = ({ user }) => {
               />
             </div>
             <div className="form-group">
-              <label className="form-label" style={{ fontSize: '0.72rem' }}>Empresa</label>
+              <label className="form-label" style={{ fontSize: '0.72rem' }}>Banco</label>
             <select
               className="form-control"
               value={bancoFilter}
               onChange={e => setBancoFilter(e.target.value)}
             >
               <option value="">Todos los Bancos</option>
-              {[...new Set(consignaciones.map(c => c.banco).filter(Boolean))]
+              {[...new Set([
+                ...consignaciones.map(c => c.banco).filter(Boolean),
+                ...(user?.empresa === 'TAT' ? KNOWN_BANCOS_TAT : KNOWN_BANCOS_GENERAL)
+              ])]
                 .sort()
                 .map(b => (
                   <option key={b} value={b}>{b}</option>
@@ -374,6 +380,7 @@ const AdminPanel = ({ user }) => {
                   setDateRange({ start: '', end: '' });
                   setEmpresaFilter('');
                   setCajeraFilter('');
+                  setBancoFilter('');
                 }}
                 style={{ padding: '0.6rem 1.25rem', fontSize: '0.8rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
               >

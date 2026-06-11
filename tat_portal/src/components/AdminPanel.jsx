@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 
 const money = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
+const KNOWN_BANCOS_TAT = ['Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Buzon Atlas', 'Gasto', 'Retención'];
+
 const AdminPanel = ({ user }) => {
 	const [consignaciones, setConsignaciones] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ const AdminPanel = ({ user }) => {
 	const filtered = consignaciones.filter(c => {
 		const s = search.trim(); let okSearch = true;
 		if (s) { const auxName = (c.auxiliar_name || '').toLowerCase(); const comprobante = String(c.numero_comprobante || ''); const valorStr = String(c.valor != null ? c.valor : ''); const sLower = s.toLowerCase(); const sNum = Number(s); okSearch = auxName.includes(sLower) || comprobante.includes(s) || valorStr.includes(s) || (!isNaN(sNum) && c.valor != null && Math.abs(c.valor - sNum) < 0.01); }
-		const dateStr = c.fecha ? c.fecha.substring(0,10) : ''; const okStart = dateRange.start ? dateStr >= dateRange.start : true; const okEnd = dateRange.end ? dateStr <= dateRange.end : true; const okBanco = bancoFilter ? c.banco === bancoFilter : true; const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true; const okCajera = cajeraFilter ? c.cajera_name === cajeraFilter : true;
+		const dateStr = c.fecha ? c.fecha.substring(0,10) : ''; const okStart = dateRange.start ? dateStr >= dateRange.start : true; const okEnd = dateRange.end ? dateStr <= dateRange.end : true; const okBanco = bancoFilter ? (c.banco && c.banco.trim().toLowerCase() === bancoFilter.trim().toLowerCase()) : true; const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true; const okCajera = cajeraFilter ? c.cajera_name === cajeraFilter : true;
 		return okSearch && okStart && okEnd && okBanco && okEmpresa && okCajera;
 	});
 
@@ -104,7 +106,7 @@ const AdminPanel = ({ user }) => {
 							<label className="form-label">Banco</label>
 							<select className="form-control" value={bancoFilter} onChange={e=>setBancoFilter(e.target.value)}>
 								<option value="">Todos los Bancos</option>
-								{[...new Set(consignaciones.map(c=>c.banco).filter(Boolean))].sort().map(b=><option key={b} value={b}>{b}</option>)}
+								{[...new Set([...consignaciones.map(c=>c.banco).filter(Boolean), ...KNOWN_BANCOS_TAT])].sort().map(b=><option key={b} value={b}>{b}</option>)}
 							</select>
 						</div>
 						<div className="form-group">
@@ -115,7 +117,7 @@ const AdminPanel = ({ user }) => {
 							</select>
 						</div>
 						<div style={{ display:'flex', alignItems:'flex-end', gap:'0.5rem' }}>
-							<button className="btn btn-ghost w-full" onClick={()=>{ setSearch(''); setDateRange({start:'',end:''}); setEmpresaFilter(''); setCajeraFilter(''); }} >Limpiar Búsqueda</button>
+							<button className="btn btn-ghost w-full" onClick={()=>{ setSearch(''); setDateRange({start:'',end:''}); setEmpresaFilter(''); setCajeraFilter(''); setBancoFilter(''); }} >Limpiar Búsqueda</button>
 							<button className="btn btn-ghost w-full" onClick={()=>setZipByBank(prev=>!prev)}>{zipByBank?'ZIP por Banco':'ZIP por Fecha'}</button>
 						</div>
 					</div>
