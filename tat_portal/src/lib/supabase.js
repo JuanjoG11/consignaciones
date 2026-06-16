@@ -6,6 +6,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Auxiliares TAT
 export const AUXILIARES = [
+  { cedula: '10275966',   nombre: 'LUIS FERNANDO LOPEZ MARIN', empresa: 'TAT' },
   { cedula: '75071571',   nombre: 'LUIS ALFONSO RIOS GONZALEZ', empresa: 'TAT' },
   { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
   { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'TAT' },
