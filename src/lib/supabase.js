@@ -73,6 +73,7 @@ export const AUXILIARES = [
   { cedula: '1004670448', nombre: 'BRANDON ESTIVEN ALZATE GONZALEZ', empresa: 'TAT' },
   { cedula: '1076350176', nombre: 'DANIELA CASTIBLANCO RAMIREZ', empresa: 'TAT' },
   { cedula: '1060586518', nombre: 'NELLY YURANNY SALDARRIAGA CAÑAS', empresa: 'TAT' },
+  { cedula: '75073568',   nombre: 'DANY ARCILA SALGADO', empresa: 'TAT' },
   { cedula: '1093220521', nombre: 'JUAN DIEGO FRANCO VERGARA', empresa: 'ALPINA' },
   { cedula: '18517128',   nombre: 'JHON FREDY MORENO', empresa: 'ALPINA' },
   { cedula: '1112776419', nombre: 'JAMMES ALBERTO RAMIREZ NIETO', empresa: 'ZENU' },
@@ -83,6 +84,7 @@ export const AUXILIARES = [
   { cedula: '1006296150', nombre: 'JHONATAN MENA GALLEGO', empresa: 'ZENU' },
   { cedula: '10005257',   nombre: 'OSCAR MAURICIO GUARUMO CLAVIJO', empresa: 'ZENU' },
   { cedula: '1004701171', nombre: 'JUAN SEBASTIAN TAMAYO PULGARIN', empresa: 'ZENU' },
+  { cedula: '1088030902', nombre: 'JEAN MICHAEL ZULUAGA MORANTE', empresa: 'ZENU' },
   // TYM registrado para ambas empresas
   { cedula: '900973932',  nombre: 'TYM', empresa: 'ALPINA' },
   { cedula: '900973932',  nombre: 'TYM', empresa: 'ZENU' },
