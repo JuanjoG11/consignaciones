@@ -19,12 +19,13 @@ const BANCO_COLORS = {
   'Alpina Bancolombia': '#ffd166',
   'Buzón': '#00e5a0',
   'Servicios Nutresa Cárnicos': '#9b5cff',
+  'Cenas': '#ff6b6b',
   'Gasto': '#ff9f1c',
   'Retención': '#94a3b8',
 };
 
 const KNOWN_BANCOS_TAT = ['Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Buzon Atlas', 'Gasto', 'Retención'];
-const KNOWN_BANCOS_GENERAL = ['Bancolombia 6061', 'Davivienda 8703', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
+const KNOWN_BANCOS_GENERAL = ['Bancolombia 6061', 'Davivienda 8703', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Servicios Nutresa Cárnicos', 'Cenas', 'Gasto', 'Retención'];
 
 const AdminPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);

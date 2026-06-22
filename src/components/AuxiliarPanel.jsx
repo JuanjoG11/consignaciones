@@ -87,6 +87,15 @@ const BANCOS_PRIMARY = [
     value: 'Servicios Nutresa Cárnicos',
   },
   {
+    id: 'cenas',
+    label: 'Cenas',
+    sub: 'Cenas Zenú',
+    color: '#ff6b6b',
+    bg: 'rgba(255,107,107,0.12)',
+    emoji: '🍽️',
+    value: 'Cenas',
+  },
+  {
     id: 'gasto',
     label: 'Gasto',
     sub: 'Legalización gasto',
@@ -413,9 +422,10 @@ const AuxiliarPanel = ({ user }) => {
       return ['bancolombia_tat', 'davivienda_tat', 'buzon_atlas', 'gasto', 'retencion'].includes(id) || value.includes('tat');
     }
 
-    // Usuarios ALPINA no deben ver 'nutresa'
+    // Usuarios ALPINA no deben ver 'nutresa' ni 'cenas'
     if (user && user.empresa === 'ALPINA') {
       if (id === 'nutresa' || value.includes('nutresa')) return false;
+      if (id === 'cenas' || value.includes('cenas')) return false;
     }
 
     // Usuarios ZENU no deben ver opciones Alpina

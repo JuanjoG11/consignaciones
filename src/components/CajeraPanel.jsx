@@ -13,6 +13,7 @@ const BANCO_COLORS = {
   'Alpina Bancolombia':    { color: '#ffd166', bg: 'rgba(255,209,102,0.12)', emoji: '🏧' },
   'Buzón':                 { color: '#00e5a0', bg: 'rgba(0,229,160,0.15)',   emoji: '📬' },
   'Servicios Nutresa Cárnicos': { color: '#9b5cff', bg: 'rgba(155,92,255,0.15)', emoji: '🥩' },
+  'Cenas':                 { color: '#ff6b6b', bg: 'rgba(255,107,107,0.15)', emoji: '🍽️' },
   'Gasto':                 { color: '#ff9f1c', bg: 'rgba(255,159,28,0.15)',  emoji: '💸' },
   'Retención':             { color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', emoji: '📄' },
   // TAT banks
@@ -22,7 +23,7 @@ const BANCO_COLORS = {
 };
 
 const ESTADOS = ['Pendiente', 'Validado', 'Cuadrado', 'Rechazado'];
-const BANCOS_FULL = ['Bancolombia 6061', 'Davivienda 8703', 'Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Buzon Atlas', 'Servicios Nutresa Cárnicos', 'Gasto', 'Retención'];
+const BANCOS_FULL = ['Bancolombia 6061', 'Davivienda 8703', 'Bancolombia TAT 4247', 'DAVIVIENDA TAT 8283', 'Alpina Agrario', 'Alpina Davivienda', 'Alpina Bancolombia', 'Buzón', 'Buzon Atlas', 'Servicios Nutresa Cárnicos', 'Cenas', 'Gasto', 'Retención'];
 
 const CajeraPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
@@ -68,8 +69,11 @@ const CajeraPanel = ({ user }) => {
     let list = BANCOS_FULL.slice();
     // Ocultar bancos TAT a quienes no son TAT
     list = list.filter(b => !String(b).toLowerCase().includes('tat'));
-    // Ocultar 'Servicios Nutresa Cárnicos' a ALPINA
-    if (company === 'ALPINA') list = list.filter(b => !String(b).toLowerCase().includes('nutresa'));
+    // Ocultar 'Servicios Nutresa Cárnicos' y 'Cenas' a ALPINA
+    if (company === 'ALPINA') {
+      list = list.filter(b => !String(b).toLowerCase().includes('nutresa'));
+      list = list.filter(b => !String(b).toLowerCase().includes('cenas'));
+    }
     // Ocultar cuentas Alpina a ZENU
     if (company === 'ZENU') list = list.filter(b => !String(b).toLowerCase().includes('alpina'));
     return list;
