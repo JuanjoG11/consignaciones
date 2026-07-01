@@ -216,7 +216,7 @@ console.log('Filtered consignaciones count:', filtered.length);
     const selState = String(selected.estado || '').trim().toLowerCase();
     if (selState === 'pendiente') {
       return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem' }}>
           <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: pad }}>
             <XCircle size={18} /> Rechazar
           </button>
@@ -229,7 +229,7 @@ console.log('Filtered consignaciones count:', filtered.length);
     
     if (selState === 'validado') {
       return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: isMobile ? '0.75rem' : '1rem' }}>
           <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rechazado')} style={{ padding: pad }}>
             <XCircle size={18} /> Rechazar
           </button>
@@ -242,7 +242,7 @@ console.log('Filtered consignaciones count:', filtered.length);
     
     if (selState === 'rechazado') {
       return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: isMobile ? '0.75rem' : '1rem', marginTop: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: isMobile ? '0.75rem' : '1rem' }}>
           <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Validado')} style={{ padding: pad }}>
             <CheckCircle size={18} /> Corregir y Validar
           </button>
@@ -252,7 +252,7 @@ console.log('Filtered consignaciones count:', filtered.length);
     
     if (selState === 'cuadrado') {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pad, background: 'rgba(0, 229, 160, 0.08)', border: '1px solid var(--neon-green)', borderRadius: 'var(--radius-sm)', color: 'var(--neon-green)', fontWeight: 700, fontSize: '0.85rem', gap: '0.5rem', marginTop: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pad, background: 'rgba(0, 229, 160, 0.08)', border: '1px solid var(--neon-green)', borderRadius: 'var(--radius-sm)', color: 'var(--neon-green)', fontWeight: 700, fontSize: '0.85rem', gap: '0.5rem' }}>
           <CheckCircle size={16} /> Consignación cuadrada y conciliada
         </div>
       );
@@ -460,17 +460,15 @@ console.log('Filtered consignaciones count:', filtered.length);
         <div className={`cajera-detail-pane ${selected ? 'visible' : ''}`}>
           {selected ? (
             <div className="card" style={{ padding: '2rem', height: '100%', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>{selected.auxiliar_name}</h1>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <span className={`badge ${badgeClass(selected.estado)}`} style={{ fontSize: '0.9rem', padding: '0.4rem 1rem' }}>{selected.estado}</span>
-                    <span style={{ color: 'var(--text-3)', fontSize: '0.85rem' }}>{format(new Date(selected.fecha), "d 'de' MMMM yyyy, h:mm a", { locale: es })}</span>
-                  </div>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <h1 style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>{selected.auxiliar_name}</h1>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span className={`badge ${badgeClass(selected.estado)}`} style={{ fontSize: '0.9rem', padding: '0.4rem 1rem' }}>{selected.estado}</span>
+                  <span style={{ color: 'var(--text-3)', fontSize: '0.85rem' }}>{format(new Date(selected.fecha), "d 'de' MMMM yyyy, h:mm a", { locale: es })}</span>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700 }}>Valor total</p>
-                  <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--neon-blue)' }}>{money(selected.valor)}</p>
+                <div>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '2px' }}>Valor total</p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--neon-blue)', margin: 0 }}>{money(selected.valor)}</p>
                 </div>
               </div>
 
