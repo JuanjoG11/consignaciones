@@ -92,6 +92,8 @@ const AdminPanel = ({ user }) => {
     return () => clearInterval(interval);
   }, []);
 
+  const isCuadrado = (c) => String(c.estado || '').trim().toLowerCase() === 'cuadrado';
+
   const exportToExcel = async (onlyFiltered = false, includeAll = false) => {
     let listToExport;
     if (includeAll) {
@@ -99,10 +101,10 @@ const AdminPanel = ({ user }) => {
       listToExport = onlyFiltered ? filtered.filter(c => c.file_url) : consignaciones.filter(c => c.file_url);
     } else if (onlyFiltered) {
       // Include only Cuadrado consignaciones that match active UI filters
-      listToExport = filtered.filter(c => c.estado === 'Cuadrado');
+      listToExport = filtered.filter(isCuadrado);
     } else {
       // Include all Cuadrado consignaciones
-      listToExport = consignaciones.filter(c => c.estado === 'Cuadrado');
+      listToExport = consignaciones.filter(isCuadrado);
     }
     if (listToExport.length === 0) return;
 
@@ -210,8 +212,8 @@ const AdminPanel = ({ user }) => {
   const heroLabel = isSearching ? 'total encontrado' : 'total validado';
   const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
   const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
-  const filteredCuadradoCount = filtered.filter(c => c.estado === 'Cuadrado').length;
-  const totalCuadradoCount = consignaciones.filter(c => c.estado === 'Cuadrado').length;
+  const filteredCuadradoCount = filtered.filter(isCuadrado).length;
+  const totalCuadradoCount = consignaciones.filter(isCuadrado).length;
   const totalUploadedCount = consignaciones.filter(c => c.file_url).length;
   const filteredUploadedCount = filtered.filter(c => c.file_url).length;
 

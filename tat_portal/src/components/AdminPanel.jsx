@@ -125,11 +125,18 @@ const AdminPanel = ({ user }) => {
 			)}
 
 			<div className="card" style={{ marginTop:'1rem' }}>
-				<div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-					<div><strong>{filtered.length}</strong> resultados</div>
-					<div style={{ display:'flex', gap:'0.5rem' }}>
-						<button className="btn btn-primary" onClick={()=>exportToExcel(true,false)}>Exportar Filtrado</button>
-						<button className="btn btn-ghost" onClick={()=>exportToExcel(false,true)}>Exportar Fotos (All)</button>
+				<div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'0.5rem' }}>
+					<div><strong>{filtered.length}</strong> resultados · <strong style={{ color: 'var(--neon-green)' }}>{consignaciones.filter(c => String(c.estado||'').trim().toLowerCase() === 'cuadrado').length}</strong> cuadrados en total</div>
+					<div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap' }}>
+						<button className="btn btn-success" onClick={()=>exportToExcel(false,false)} disabled={loading || consignaciones.filter(c=>String(c.estado||'').trim().toLowerCase()==='cuadrado').length===0}>
+							<Download size={16}/> Respaldo Completo (Cuadrados)
+						</button>
+						<button className="btn btn-primary" onClick={()=>exportToExcel(true,false)} disabled={loading || filtered.filter(c=>String(c.estado||'').trim().toLowerCase()==='cuadrado').length===0}>
+							<Download size={16}/> Exportar Filtrado ({filtered.filter(c=>String(c.estado||'').trim().toLowerCase()==='cuadrado').length})
+						</button>
+						<button className="btn btn-ghost" onClick={()=>exportToExcel(false,true)} disabled={loading}>
+							<Download size={16}/> Todas las Fotos
+						</button>
 						{user && user.role === 'admin' && (
 							<a className="btn btn-primary" href="/tat_portal.zip" download>Descargar Portal TAT (ZIP)</a>
 						)}
