@@ -22,6 +22,7 @@ export const AUXILIARES = [
   { cedula: '1004670448', nombre: 'BRANDON ESTIVEN ALZATE GONZALEZ', empresa: 'TAT' },
   { cedula: '1076350176', nombre: 'DANIELA CASTIBLANCO RAMIREZ', empresa: 'TAT' },
   { cedula: '1060586518', nombre: 'NELLY YURANNY SALDARRIAGA CAÑAS', empresa: 'TAT' },
+  { cedula: '1046982009', nombre: 'CRISTIAN MAURICIO RUIZ CANO', empresa: 'TAT' },
 ];
 
 export const mockAuth = {
