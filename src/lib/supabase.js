@@ -53,6 +53,7 @@ export const AUXILIARES = [
   { cedula: '1088331177', nombre: 'MICHAEL STEVEN HENAO RODRIGUEZ', empresa: 'ALPINA' },
   { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO', empresa: 'ALPINA' },
   { cedula: '1064310724', nombre: 'JUAN JOSE CONTRERAS', empresa: 'ALPINA' },
+  { cedula: '1064723579', nombre: 'CARLOS ALBERTO JIMENEZ JACOME', empresa: 'ALPINA' },
   // Auxiliares para el proveedor TAT
   { cedula: '10275966',   nombre: 'LUIS FERNANDO LOPEZ MARIN', empresa: 'TAT' },
   { cedula: '1099999001', nombre: 'JUAN PÉREZ TAT', empresa: 'TAT' },
@@ -75,6 +76,7 @@ export const AUXILIARES = [
   { cedula: '1060586518', nombre: 'NELLY YURANNY SALDARRIAGA CAÑAS', empresa: 'TAT' },
   { cedula: '75073568',   nombre: 'DANY ARCILA SALGADO', empresa: 'TAT' },
   { cedula: '1046982009', nombre: 'CRISTIAN MAURICIO RUIZ CANO', empresa: 'TAT' },
+  { cedula: '1053849016', nombre: 'JHONNY LOPEZ LOPEZ', empresa: 'TAT' },
   { cedula: '1093220521', nombre: 'JUAN DIEGO FRANCO VERGARA', empresa: 'ALPINA' },
   { cedula: '18517128',   nombre: 'JHON FREDY MORENO', empresa: 'ALPINA' },
   { cedula: '1112776419', nombre: 'JAMMES ALBERTO RAMIREZ NIETO', empresa: 'ZENU' },
