@@ -181,7 +181,12 @@ const CajeraPanel = ({ user }) => {
     } else {
       okEstado = true;
     }
-    const okSearch = search ? (c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || c.numero_comprobante.includes(search)) : true;
+    const searchLower = search.toLowerCase();
+    const okSearch = search ? (
+      c.auxiliar_name.toLowerCase().includes(searchLower) ||
+      c.numero_comprobante.includes(search) ||
+      String(c.valor).includes(search.replace(/[.,\s]/g, ''))
+    ) : true;
     const cDateStr = c.fecha.split('T')[0];
     const okStart = dateRange.start ? cDateStr >= dateRange.start : true;
     const okEnd = dateRange.end ? cDateStr <= dateRange.end : true;
@@ -301,7 +306,7 @@ console.log('Filtered consignaciones count:', filtered.length);
             type="text"
             className="form-control"
             style={{ paddingLeft: '2.5rem' }}
-            placeholder="Buscar auxiliar o comprobante..."
+            placeholder="Buscar auxiliar, comprobante o valor..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />

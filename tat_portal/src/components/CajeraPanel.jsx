@@ -64,7 +64,12 @@ const CajeraPanel = ({ user }) => {
       if (estadoFilter && !search) okEstado = c.estado === estadoFilter;
       else if (user && user.role === 'cajera') okEstado = c.estado === 'Pendiente' || c.estado === 'Validado' || c.estado === 'Cuadrado';
       else okEstado = true;
-      const okSearch = search ? (c.auxiliar_name.toLowerCase().includes(search.toLowerCase()) || c.numero_comprobante.includes(search)) : true;
+      const searchLower = search.toLowerCase();
+      const okSearch = search ? (
+        c.auxiliar_name.toLowerCase().includes(searchLower) ||
+        c.numero_comprobante.includes(search) ||
+        String(c.valor).includes(search.replace(/[.,\s]/g, ''))
+      ) : true;
       const cDateStr = c.fecha.split('T')[0];
       const okStart = dateRange.start ? cDateStr >= dateRange.start : true;
       const okEnd = dateRange.end ? cDateStr <= dateRange.end : true;
@@ -95,7 +100,7 @@ const CajeraPanel = ({ user }) => {
       <div className="hero-card"><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><div className="hero-label">👩‍💼 Panel Cajera (TAT)</div></div><div className="hero-value">{pendientes}</div><div className="hero-sub">{pendientes === 1 ? 'consignación pendiente' : 'consignaciones pendientes'} de validación{validadasPorCuadrar > 0 && ` · ${validadasPorCuadrar} por cuadrar`}</div></div>
 
       <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0 0.5rem' }}>
-        <div className="search-wrap" style={{ flex: 1, margin: 0 }}><Search size={15} className="search-icon" /><input type="text" className="form-control" style={{ paddingLeft: '2.5rem' }} placeholder="Buscar auxiliar o comprobante..." value={search} onChange={e => setSearch(e.target.value)} /></div>
+        <div className="search-wrap" style={{ flex: 1, margin: 0 }}><Search size={15} className="search-icon" /><input type="text" className="form-control" style={{ paddingLeft: '2.5rem' }} placeholder="Buscar auxiliar, comprobante o valor..." value={search} onChange={e => setSearch(e.target.value)} /></div>
         <button className={`btn btn-ghost btn-icon`} onClick={() => setShowFilters(v => !v)} style={{ flexShrink: 0 }}><SlidersHorizontal size={17} /></button>
       </div>
 
