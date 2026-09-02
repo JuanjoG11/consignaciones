@@ -113,7 +113,7 @@ const AuxiliarPanel = ({ user }) => {
       if (editingItem) {
         toast.loading('Actualizando consignación...', { id: tid }); await mockDB.updateConsignacion(editingItem.id, { banco, valor: valorNumerico, numero_comprobante: finalNumero, file_url: publicUrl, estado: 'Pendiente', motivo_rechazo: null }); toast.success('¡Consignación corregida! Volverá a ser revisada. 🌟', { id: tid }); setEditingItem(null); reset();
       } else {
-        toast.loading('Guardando consignación...', { id: tid }); await mockDB.addConsignacion({ banco, valor: valorNumerico, numero_comprobante: finalNumero, file_url: publicUrl, auxiliar_id: user.id, auxiliar_name: user.full_name, empresa: 'TAT' }); toast.success('¡Consignación registrada correctamente! 🎉', { id: tid }); setSuccess(true);
+        toast.loading('Guardando consignación...', { id: tid }); await mockDB.addConsignacion({ banco, valor: valorNumerico, numero_comprobante: finalNumero, file_url: publicUrl, auxiliar_id: user.id, auxiliar_name: user.full_name, empresa: user.empresa || 'ALPINA' }); toast.success('¡Consignación registrada correctamente! 🎉', { id: tid }); setSuccess(true);
       }
     } catch (err) { console.error(err); toast.dismiss(tid); toast.error('❌ Error: ' + (err.message || 'No se pudo guardar la consignación')); } finally { setLoading(false); fetchHistory(); }
   };

@@ -58,13 +58,9 @@ const AdminPanel = ({ user }) => {
     if (!silent) setLoading(true);
     const data = await mockDB.getConsignaciones();
     console.log('Fetched consignaciones', data);
-    // Si el usuario es admin en la app principal, mostrar según su empresa
+    // Si el usuario es admin en la app principal, mostrar todos los registros no-TAT
     if (user && user.role === 'admin') {
-      if (user.empresa === 'TAT') {
-        setConsignaciones((data || []).filter(d => d.empresa === 'TAT'));
-      } else {
-        setConsignaciones((data || []).filter(d => d.empresa !== 'TAT'));
-      }
+      setConsignaciones(data || []);
     } else {
       setConsignaciones(data);
     }
