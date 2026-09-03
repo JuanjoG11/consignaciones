@@ -32,8 +32,11 @@ const AdminPanel = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
   const [dateRange, setDateRange] = useState(() => {
-    const today = new Date().toISOString().split('T')[0];
-    return { start: today, end: today };
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const daysInMonth = new Date(year, now.getMonth() + 1, 0).getDate();
+    return { start: `${year}-${month}-01`, end: `${year}-${month}-${daysInMonth}` };
   });
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [cajeraFilter, setCajeraFilter] = useState('');
