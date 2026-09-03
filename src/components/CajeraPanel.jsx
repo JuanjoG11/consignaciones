@@ -31,7 +31,10 @@ const CajeraPanel = ({ user }) => {
   const [bancoFilter, setBancoFilter]   = useState('');
   const [estadoFilter, setEstadoFilter] = useState('');
   const [search, setSearch]             = useState('');
-  const [dateRange, setDateRange]       = useState({ start: '', end: '' });
+  const [dateRange, setDateRange] = useState(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return { start: today, end: today };
+  });
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [selected, setSelected]         = useState(null);
   const [showFilters, setShowFilters]   = useState(false);

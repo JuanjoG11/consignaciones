@@ -4,27 +4,10 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Auxiliares TYM Alpina (antes TAT)
+// Auxiliares TAT
 export const AUXILIARES = [
-  { cedula: '10275966',   nombre: 'LUIS FERNANDO LOPEZ MARIN', empresa: 'ALPINA' },
-  { cedula: '75071571',   nombre: 'LUIS ALFONSO RIOS GONZALEZ', empresa: 'ALPINA' },
-  { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'ALPINA' },
-  { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'ALPINA' },
-  { cedula: '1089097145', nombre: 'MANUEL ALEJANDRO RAMIREZ OVALLE', empresa: 'ALPINA' },
-  { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'ALPINA' },
-  { cedula: '1094956074', nombre: 'YERFREY FLORES ARROYAVE', empresa: 'ALPINA' },
-  { cedula: '10030398',   nombre: 'JOHN RAUL GRAJALES CANO', empresa: 'ALPINA' },
-  { cedula: '1004667097', nombre: 'JUAN GUILLERMO FERNANDEZ GIRALDO', empresa: 'ALPINA' },
-  { cedula: '1055831421', nombre: 'SAMUEL ANDRES ARIAS ARCILA', empresa: 'ALPINA' },
-  { cedula: '1004680120', nombre: 'VALENTINA GARCIA GOMEZ', empresa: 'ALPINA' },
-  { cedula: '80433929',   nombre: 'LINO LOPEZ SIMONS', empresa: 'ALPINA' },
-  { cedula: '30397740',   nombre: 'LUZ MARINA GUZMAN TORO', empresa: 'ALPINA' },
-  { cedula: '1004670448', nombre: 'BRANDON ESTIVEN ALZATE GONZALEZ', empresa: 'ALPINA' },
-  { cedula: '1076350176', nombre: 'DANIELA CASTIBLANCO RAMIREZ', empresa: 'ALPINA' },
-  { cedula: '1060586518', nombre: 'NELLY YURANNY SALDARRIAGA CAÑAS', empresa: 'ALPINA' },
-  { cedula: '1046982009', nombre: 'CRISTIAN MAURICIO RUIZ CANO', empresa: 'ALPINA' },
-  { cedula: '1053849016', nombre: 'JHONNY LOPEZ LOPEZ', empresa: 'ALPINA' },
-  { cedula: '1088025123', nombre: 'SEBASTIAN MILLAN', empresa: 'ALPINA' },
+  { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
+  { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
 ];
 
 export const mockAuth = {
@@ -32,14 +15,14 @@ export const mockAuth = {
     if (cedula) {
       const aux = AUXILIARES.find(a => a.cedula === cedula.trim());
       if (!aux) return { user: null, error: { message: 'Cédula no registrada en TAT' } };
-      const user = { id: `aux_${aux.cedula}`, cedula: aux.cedula, role: 'auxiliar', full_name: aux.nombre, empresa: 'TAT' };
+      const user = { id: `aux_${aux.cedula}`, cedula: aux.cedula, role: 'auxiliar', full_name: aux.nombre, empresa: aux.empresa };
       localStorage.setItem('consignaciones_user', JSON.stringify(user));
       return { user, error: null };
     }
 
     const productionUsers = [
-      { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TYM Alpina)', pass: 'Tat*2026D', empresa: 'ALPINA' },
-      { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TYM Alpina', pass: 'TatAdmin*2026', empresa: 'ALPINA' },
+      { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
+      { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TAT', pass: 'TatAdmin*2026' },
     ];
 
     const found = productionUsers.find(u => u.email === email && u.pass === password);

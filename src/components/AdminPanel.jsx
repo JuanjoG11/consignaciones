@@ -31,7 +31,10 @@ const AdminPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [dateRange, setDateRange] = useState(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return { start: today, end: today };
+  });
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [cajeraFilter, setCajeraFilter] = useState('');
   const [bancoFilter, setBancoFilter] = useState(''); // New bank filter
@@ -39,28 +42,32 @@ const AdminPanel = ({ user }) => {
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [showFilters, setShowFilters] = useState(false);
 
-  // Helper to set date range for a given month (June or May)
-  const setMonthRange = (month) => {
+  // Helper to set date range para un mes dado (índice 0-11)
+  const setMonthRange = (monthIdx) => {
     const year = new Date().getFullYear();
-    const monthIdx = month === 'June' ? 5 : 4; // June=5, May=4 (0-indexed)
     const start = `${year}-${String(monthIdx + 1).padStart(2, '0')}-01`;
     const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
     const end = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${daysInMonth}`;
     setDateRange({ start, end });
   };
 
-  // Set default to June on mount
+  // Set default al mes actual al montar
   useEffect(() => {
-    setMonthRange('June');
+    const now = new Date();
+    setMonthRange(now.getMonth());
   }, []);
 
   const fetchConsignaciones = async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await mockDB.getConsignaciones();
     console.log('Fetched consignaciones', data);
-    // Si el usuario es admin en la app principal, mostrar todos los registros no-TAT
+    // Si el usuario es admin en la app principal, mostrar según su empresa
     if (user && user.role === 'admin') {
-      setConsignaciones(data || []);
+      if (user.empresa === 'TAT') {
+        setConsignaciones((data || []).filter(d => d.empresa === 'TAT'));
+      } else {
+        setConsignaciones((data || []).filter(d => d.empresa !== 'TAT'));
+      }
     } else {
       setConsignaciones(data);
     }
@@ -387,10 +394,10 @@ const AdminPanel = ({ user }) => {
               </button>
               <button
                 className="btn btn-ghost w-full"
-                onClick={() => setMonthRange('May')}
+                onClick={() => { const prev = new Date(); prev.setMonth(prev.getMonth() - 1); setMonthRange(prev.getMonth()); }}
                 style={{ padding: '0.6rem 1.25rem', fontSize: '0.8rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
               >
-                Ver historial de Mayo
+                Ver historial de {new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('es-CO', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
               </button>
             </div>
             </div>
@@ -406,20 +413,25 @@ const AdminPanel = ({ user }) => {
 
           {/* Sección de datos por mes */}
           <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
-            {/* Datos de Junio */}
+            {/* Mes actual */}
             <div className="card" style={{ flex: 1, padding: '1rem' }}>
-              <h3 style={{ marginBottom: '0.5rem' }}>Datos de Junio</h3>
+              <h3 style={{ marginBottom: '0.5rem' }}>
+                Datos de {new Date().toLocaleDateString('es-CO', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+              </h3>
               <p>Total consignaciones: {consignaciones.filter(c => {
                 const d = new Date(c.fecha);
-                return d.getMonth() === 5; // Junio (0-indexed)
+                return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
               }).length}</p>
             </div>
-            {/* Histórico de Mayo */}
+            {/* Mes anterior */}
             <div className="card" style={{ flex: 1, padding: '1rem' }}>
-              <h3 style={{ marginBottom: '0.5rem' }}>Histórico de Mayo</h3>
+              <h3 style={{ marginBottom: '0.5rem' }}>
+                Histórico de {new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('es-CO', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+              </h3>
               <p>Total consignaciones: {consignaciones.filter(c => {
                 const d = new Date(c.fecha);
-                return d.getMonth() === 4; // Mayo
+                const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+                return d.getMonth() === prev.getMonth() && d.getFullYear() === prev.getFullYear();
               }).length}</p>
             </div>
           </div>

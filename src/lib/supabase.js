@@ -54,13 +54,13 @@ export const AUXILIARES = [
   { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO', empresa: 'ALPINA' },
   { cedula: '1064310724', nombre: 'JUAN JOSE CONTRERAS', empresa: 'ALPINA' },
   { cedula: '1064723579', nombre: 'CARLOS ALBERTO JIMENEZ JACOME', empresa: 'ALPINA' },
-  // Auxiliares TYM Alpina (antes TAT)
+  // Auxiliares TAT — solo Julian y Yudi permanecen en TAT; el resto pasó a ALPINA
   { cedula: '10275966',   nombre: 'LUIS FERNANDO LOPEZ MARIN', empresa: 'ALPINA' },
   { cedula: '75071571',   nombre: 'LUIS ALFONSO RIOS GONZALEZ', empresa: 'ALPINA' },
-  { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'ALPINA' },
+  { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
   { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'ALPINA' },
   { cedula: '1089097145', nombre: 'MANUEL ALEJANDRO RAMIREZ OVALLE', empresa: 'ALPINA' },
-  { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'ALPINA' },
+  { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
   { cedula: '1094956074', nombre: 'YERFREY FLORES ARROYAVE', empresa: 'ALPINA' },
   { cedula: '10030398',   nombre: 'JOHN RAUL GRAJALES CANO', empresa: 'ALPINA' },
   { cedula: '1004667097', nombre: 'JUAN GUILLERMO FERNANDEZ GIRALDO', empresa: 'ALPINA' },
@@ -125,8 +125,8 @@ export const mockAuth = {
       { id: 'cajera-eli-zenu', email: 'eliana.zenu@consigcontrol.com', role: 'cajera', full_name: 'Eliana (Zenu)', pass: 'Zenu*2026E', empresa: 'ZENU' },
       { id: 'cajera-nat-zenu', email: 'nataly.zenu@consigcontrol.com', role: 'cajera', full_name: 'Nataly (Zenu)', pass: 'Zenu*2026N', empresa: 'ZENU' },
       { id: 'cajera-cris-alpina', email: 'cristina.alpina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Alpina)', pass: 'Alpina*2026C', empresa: 'ALPINA' },
-      { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TYM Alpina)', pass: 'Tat*2026D', empresa: 'ALPINA' },
-      { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TYM Alpina', pass: 'TatAdmin*2026', empresa: 'ALPINA' },
+      { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
+      { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TAT', pass: 'TatAdmin*2026', empresa: 'TAT' },
     ];
 
     const foundLocal = productionUsers.find(u => u.email === email && u.pass === password);
