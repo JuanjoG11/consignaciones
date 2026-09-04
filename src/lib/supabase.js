@@ -61,6 +61,7 @@ export const AUXILIARES = [
   { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'ALPINA' },
   { cedula: '1089097145', nombre: 'MANUEL ALEJANDRO RAMIREZ OVALLE', empresa: 'ALPINA' },
   { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
+  { cedula: '901568117',  nombre: 'CAJA TAT', empresa: 'TAT' },
   { cedula: '1094956074', nombre: 'YERFREY FLORES ARROYAVE', empresa: 'ALPINA' },
   { cedula: '10030398',   nombre: 'JOHN RAUL GRAJALES CANO', empresa: 'ALPINA' },
   { cedula: '1004667097', nombre: 'JUAN GUILLERMO FERNANDEZ GIRALDO', empresa: 'ALPINA' },
