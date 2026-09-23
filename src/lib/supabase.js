@@ -57,6 +57,8 @@ export const AUXILIARES = [
   // Auxiliares TAT — solo Julian y Yudi permanecen en TAT; el resto pasó a ALPINA
   { cedula: '10275966',   nombre: 'LUIS FERNANDO LOPEZ MARIN', empresa: 'ALPINA' },
   { cedula: '75071571',   nombre: 'LUIS ALFONSO RIOS GONZALEZ', empresa: 'ALPINA' },
+  { cedula: '42131453',   nombre: 'DIANA GARCIA', empresa: 'ALPINA' },
+  { cedula: '42131453',   nombre: 'DIANA GARCIA', empresa: 'TAT' },
   { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
   { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'ALPINA' },
   { cedula: '1089097145', nombre: 'MANUEL ALEJANDRO RAMIREZ OVALLE', empresa: 'ALPINA' },
@@ -78,6 +80,7 @@ export const AUXILIARES = [
   { cedula: '1088025123', nombre: 'SEBASTIAN MILLAN', empresa: 'ALPINA' },
   { cedula: '1093220521', nombre: 'JUAN DIEGO FRANCO VERGARA', empresa: 'ALPINA' },
   { cedula: '18517128',   nombre: 'JHON FREDY MORENO', empresa: 'ALPINA' },
+  { cedula: '1089382721', nombre: 'SEBASTIAN MONTES', empresa: 'ALPINA' },
   { cedula: '1112776419', nombre: 'JAMMES ALBERTO RAMIREZ NIETO', empresa: 'ZENU' },
   { cedula: '1098724347', nombre: 'SEBASTIAN SALAZAR HENAO', empresa: 'ZENU' },
   { cedula: '1088037094', nombre: 'DANIEL FELIPE MURILLO GRANDA', empresa: 'ZENU' },
@@ -129,6 +132,8 @@ export const mockAuth = {
       { id: 'cajera-nat-zenu', email: 'nataly.zenu@consigcontrol.com', role: 'cajera', full_name: 'Nataly (Zenu)', pass: 'Zenu*2026N', empresa: 'ZENU' },
       { id: 'cajera-cris-alpina', email: 'cristina.alpina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Alpina)', pass: 'Alpina*2026C', empresa: 'ALPINA' },
       { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
+      { id: 'cajera-diana-alpina', email: 'diana.alpina@consigcontrol.com', role: 'cajera', full_name: 'Diana Garcia (Alpina)', pass: 'Alpina*2026Di', empresa: 'ALPINA' },
+      { id: 'cajera-diana-tat',    email: 'diana.tat@consigcontrol.com',    role: 'cajera', full_name: 'Diana Garcia (TAT)',    pass: 'Tat*2026Di',    empresa: 'TAT'   },
       { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TAT', pass: 'TatAdmin*2026', empresa: 'TAT' },
     ];
 

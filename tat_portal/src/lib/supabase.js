@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 export const AUXILIARES = [
   { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
   { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
+  { cedula: '42131453',   nombre: 'DIANA GARCIA', empresa: 'TAT' },
 ];
 
 export const mockAuth = {
@@ -22,6 +23,7 @@ export const mockAuth = {
 
     const productionUsers = [
       { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
+      { id: 'cajera-diana-tat', email: 'diana.tat@consigcontrol.com', role: 'cajera', full_name: 'Diana Garcia (TAT)', pass: 'Tat*2026Di', empresa: 'TAT' },
       { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TAT', pass: 'TatAdmin*2026' },
     ];
 
