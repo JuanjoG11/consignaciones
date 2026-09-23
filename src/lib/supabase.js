@@ -252,34 +252,35 @@ export const mockDB = {
   },
 
   // VERIFICAR DUPLICADOS
-  // Solo bloquea si el número de comprobante ya existe (sin importar el valor).
-  // Mismo valor con diferente número de comprobante → se PERMITE.
+  // Solo bloquea si el número de comprobante ya existe en un registro activo
+  // (estado distinto de 'Rechazado'). Usa ilike para comparación case-insensitive,
+  // evitando falsos negativos por mayúsculas/minúsculas o espacios laterales.
   checkDuplicate: async (numero_comprobante, excludeId = null) => {
+    const numeroLimpio = String(numero_comprobante).trim();
     let query = supabase
       .from('consignaciones')
-      .select('id')
-      .eq('numero_comprobante', numero_comprobante)
+      .select('id, numero_comprobante')
+      .ilike('numero_comprobante', numeroLimpio)
       .neq('estado', 'Rechazado');
-      
+
     if (excludeId) {
       query = query.neq('id', excludeId);
     }
-    
+
     const { data, error } = await query.limit(1);
-    
+
     if (error) throw error;
-    return data && data.length > 0; // true si el número existe y no está rechazado
+    return data && data.length > 0; // true = duplicado encontrado
   },
 
   // AGREGAR CONSIGNACIÓN (REAL)
   addConsignacion: async (formData) => {
-    // 1. Insertar directamente (el check se hace antes en la UI para mejor UX)
     const { data, error } = await supabase
       .from('consignaciones')
       .insert([{
         banco: formData.banco,
         valor: formData.valor,
-        numero_comprobante: formData.numero_comprobante,
+        numero_comprobante: String(formData.numero_comprobante).trim(),
         file_url: formData.file_url,
         auxiliar_id: formData.auxiliar_id,
         auxiliar_name: formData.auxiliar_name,
@@ -288,17 +289,37 @@ export const mockDB = {
       }])
       .select();
 
-    if (error) throw error;
+    // Código 23505 = unique_violation en PostgreSQL/Supabase
+    if (error) {
+      if (error.code === '23505') {
+        const dupError = new Error(`El número de comprobante "${String(formData.numero_comprobante).trim()}" ya fue registrado.`);
+        dupError.isDuplicate = true;
+        throw dupError;
+      }
+      throw error;
+    }
     return { data: data[0], error: null };
   },
 
   // ACTUALIZAR REGISTRO COMPLETO (EDITAR)
   updateConsignacion: async (id, updateData) => {
+    // Limpiar el número de comprobante si viene en el update
+    if (updateData.numero_comprobante !== undefined) {
+      updateData.numero_comprobante = String(updateData.numero_comprobante).trim();
+    }
     const { error } = await supabase
       .from('consignaciones')
       .update(updateData)
       .eq('id', id);
-    if (error) throw error;
+
+    if (error) {
+      if (error.code === '23505') {
+        const dupError = new Error(`El número de comprobante "${updateData.numero_comprobante}" ya fue registrado.`);
+        dupError.isDuplicate = true;
+        throw dupError;
+      }
+      throw error;
+    }
     return { error: null };
   },
 

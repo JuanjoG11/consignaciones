@@ -24,5 +24,14 @@ ALTER TABLE public.consignaciones ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for now" ON public.consignaciones
   FOR ALL USING (true) WITH CHECK (true);
 
--- 2. Configurar el Storage para las imágenes (Opcional, pero recomendado)
+-- 2. Índice único parcial sobre numero_comprobante
+-- Bloquea a nivel de base de datos que el mismo número pueda existir en dos registros
+-- que NO estén en estado 'Rechazado'. Así un comprobante rechazado se puede volver a
+-- registrar, pero cualquier intento duplicado en registros activos falla con un error
+-- de constraint (código 23505) que el frontend detecta y muestra al usuario.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_comprobante_unico
+  ON public.consignaciones (numero_comprobante)
+  WHERE estado <> 'Rechazado';
+
+-- 3. Configurar el Storage para las imágenes (Opcional, pero recomendado)
 -- Ve a la sección 'Storage' en Supabase y crea un Bucket llamado 'comprobantes' y ponlo como PUBLIC.

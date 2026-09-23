@@ -271,8 +271,8 @@ const AuxiliarPanel = ({ user }) => {
     
     // Para Gastos y Retenciones generamos un número automático si no existe
     const isSpecial = banco === 'Gasto' || banco === 'Retención';
-    let finalNumero = numero;
-    if (isSpecial && !numero) {
+    let finalNumero = numero.trim();
+    if (isSpecial && !finalNumero) {
       finalNumero = `${banco.toUpperCase()}-${Date.now()}`;
     }
 
@@ -372,7 +372,17 @@ const AuxiliarPanel = ({ user }) => {
     } catch (err) {
       console.error("Error detallado:", err);
       toast.dismiss(tid);
-      toast.error('❌ Error: ' + (err.message || 'No se pudo guardar la consignación'));
+      // Si la DB rechazó por duplicado (constraint 23505 o flag isDuplicate), mostrar modal
+      if (err.isDuplicate) {
+        setModal({
+          title: '¡Comprobante Repetido!',
+          message: `El número de comprobante "${finalNumero}" ya fue registrado anteriormente.\nUsa un número de comprobante diferente.`,
+          icon: '⚠️',
+          color: 'var(--neon-red)'
+        });
+      } else {
+        toast.error('❌ Error: ' + (err.message || 'No se pudo guardar la consignación'));
+      }
     } finally {
       setLoading(false);
       fetchHistory();
@@ -602,10 +612,11 @@ const AuxiliarPanel = ({ user }) => {
             </label>
             <input
               type="text"
+              inputMode="numeric"
               className="form-control"
               placeholder="Ej. 987654321"
               value={numero}
-              onChange={e => setNumero(e.target.value)}
+              onChange={e => setNumero(e.target.value.replace(/\D/g, ''))}
               required
             />
           </div>
@@ -805,13 +816,23 @@ const AuxiliarPanel = ({ user }) => {
 
       {/* ── MODAL PERSONALIZADO ── */}
       {modal && (
-        <div className="modal-overlay" style={{ alignItems: 'center', padding: '1.5rem' }}>
+        <div className="modal-overlay" style={{ 
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+        }}>
           <div className="card animate-in" style={{ 
             maxWidth: '380px', 
             width: '100%', 
             textAlign: 'center', 
             padding: '2rem',
-            background: 'rgba(20, 20, 35, 0.95)',
+            background: 'rgba(20, 20, 35, 0.97)',
             backdropFilter: 'blur(20px)',
             border: `1px solid ${modal.color}33`,
             boxShadow: `0 20px 50px -10px rgba(0,0,0,0.5), 0 0 20px ${modal.color}11`
