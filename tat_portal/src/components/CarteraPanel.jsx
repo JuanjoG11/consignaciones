@@ -45,10 +45,12 @@ const CarteraPanel = ({ user }) => {
   // Modal cuadrar (con número de cuadre)
   const [cuadrarModal, setCuadrarModal] = useState({ open: false, id: null, numeroCuadre: '' });
 
-  // IDs permitidos: solo las 4 vendedoras (empresa TAT) + Diana misma como auxiliar TAT
-  const vendedorasIds = CEDULAS_VENDEDORAS.map(c => `aux_${c}_TAT`);
-  const dianaAuxId    = `aux_42131453_TAT`;
-  const allowedIds    = [...new Set([...vendedorasIds, dianaAuxId])];
+  // IDs permitidos: solo las 4 vendedoras + Diana misma como auxiliar.
+  // El portal principal genera IDs con empresa (aux_CED_TAT) y el tat_portal sin ella (aux_CED).
+  // Cubrimos ambos formatos para no perder registros.
+  const vendedorasIds = CEDULAS_VENDEDORAS.flatMap(c => [`aux_${c}_TAT`, `aux_${c}`]);
+  const dianaAuxId    = [`aux_42131453_TAT`, `aux_42131453`];
+  const allowedIds    = [...new Set([...vendedorasIds, ...dianaAuxId])];
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
