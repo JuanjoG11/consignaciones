@@ -86,6 +86,7 @@ export const AUXILIARES = [
   { cedula: '1093220521', nombre: 'JUAN DIEGO FRANCO VERGARA', empresa: 'ALPINA' },
   { cedula: '18517128',   nombre: 'JHON FREDY MORENO', empresa: 'ALPINA' },
   { cedula: '1089382721', nombre: 'SEBASTIAN MONTES', empresa: 'ALPINA' },
+  { cedula: '1007360457', nombre: 'DUVIER IVAN GALVIS VASQUEZ', empresa: 'ALPINA' },
   { cedula: '1112776419', nombre: 'JAMMES ALBERTO RAMIREZ NIETO', empresa: 'ZENU' },
   { cedula: '1098724347', nombre: 'SEBASTIAN SALAZAR HENAO', empresa: 'ZENU' },
   { cedula: '1088037094', nombre: 'DANIEL FELIPE MURILLO GRANDA', empresa: 'ZENU' },
