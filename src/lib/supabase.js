@@ -60,6 +60,11 @@ export const AUXILIARES = [
   { cedula: '42131453',   nombre: 'DIANA GARCIA', empresa: 'ALPINA' },
   { cedula: '42131453',   nombre: 'DIANA GARCIA', empresa: 'TAT' },
   { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
+  // Vendedoras TAT (tienen campo nombre_cliente al registrar)
+  { cedula: '30415268',   nombre: 'MARIA CARMENZA GUAPACHA CASTAÑEDA', empresa: 'TAT' },
+  { cedula: '42149772',   nombre: 'MARIA DEL PILAR ARANGO BLANDON', empresa: 'TAT' },
+  { cedula: '1047467581', nombre: 'PAULA ANDREA RAMOS BORJA', empresa: 'TAT' },
+  { cedula: '25181643',   nombre: 'YEIMY LUCIA HOLGUIN OSORIO', empresa: 'TAT' },
   { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'ALPINA' },
   { cedula: '1089097145', nombre: 'MANUEL ALEJANDRO RAMIREZ OVALLE', empresa: 'ALPINA' },
   { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
@@ -132,8 +137,8 @@ export const mockAuth = {
       { id: 'cajera-nat-zenu', email: 'nataly.zenu@consigcontrol.com', role: 'cajera', full_name: 'Nataly (Zenu)', pass: 'Zenu*2026N', empresa: 'ZENU' },
       { id: 'cajera-cris-alpina', email: 'cristina.alpina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Alpina)', pass: 'Alpina*2026C', empresa: 'ALPINA' },
       { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
-      { id: 'cajera-diana-alpina', email: 'diana.alpina@consigcontrol.com', role: 'cajera', full_name: 'Diana Garcia (Alpina)', pass: 'Alpina*2026Di', empresa: 'ALPINA' },
-      { id: 'cajera-diana-tat',    email: 'diana.tat@consigcontrol.com',    role: 'cajera', full_name: 'Diana Garcia (TAT)',    pass: 'Tat*2026Di',    empresa: 'TAT'   },
+      { id: 'cartera-diana-alpina', email: 'diana.alpina@consigcontrol.com', role: 'cartera', full_name: 'Diana Garcia (Alpina)', pass: 'Alpina*2026Di', empresa: 'ALPINA' },
+      { id: 'cartera-diana-tat',   email: 'diana.tat@consigcontrol.com',    role: 'cartera', full_name: 'Diana Garcia (TAT)',    pass: 'Tat*2026Di',    empresa: 'TAT'   },
       { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TAT', pass: 'TatAdmin*2026', empresa: 'TAT' },
     ];
 
@@ -290,7 +295,8 @@ export const mockDB = {
         auxiliar_id: formData.auxiliar_id,
         auxiliar_name: formData.auxiliar_name,
         empresa: formData.empresa || 'GENERAL',
-        estado: 'Pendiente'
+        estado: 'Pendiente',
+        ...(formData.nombre_cliente ? { nombre_cliente: formData.nombre_cliente } : {}),
       }])
       .select();
 

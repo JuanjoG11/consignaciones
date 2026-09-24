@@ -21,6 +21,7 @@ const AuxiliarPanel = ({ user }) => {
   const [showSub, setShowSub] = useState(false);
   const [valor, setValor] = useState('');
   const [numero, setNumero] = useState('');
+  const [nombreCliente, setNombreCliente] = useState('');
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -91,9 +92,16 @@ const AuxiliarPanel = ({ user }) => {
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    const isSpecial = banco === 'Gasto' || banco === 'Retención' || banco === 'Gasto' || banco === 'Retención';
+    const isSpecial = banco === 'Gasto' || banco === 'Retención';
     let finalNumero = numero;
     if (isSpecial && !numero) finalNumero = `${banco.toUpperCase()}-${Date.now()}`;
+
+    const esVendedora = ['30415268', '42149772', '1047467581', '25181643'].includes(user.cedula);
+    if (esVendedora && !nombreCliente.trim()) {
+      setModal({ title: 'Falta el Cliente', message: 'Por favor ingresa el nombre del cliente.', icon: '👤', color: 'var(--neon-yellow)' });
+      return;
+    }
+
     const isFileRequired = !editingItem;
     if (!banco || !valor || (!finalNumero && !isSpecial) || (isFileRequired && !file)) {
       const missing = []; if (!banco) missing.push('Banco'); if (!valor) missing.push('Valor'); if (!finalNumero && !isSpecial) missing.push('Número'); if (isFileRequired && !file) missing.push('Foto/PDF');
@@ -113,12 +121,12 @@ const AuxiliarPanel = ({ user }) => {
       if (editingItem) {
         toast.loading('Actualizando consignación...', { id: tid }); await mockDB.updateConsignacion(editingItem.id, { banco, valor: valorNumerico, numero_comprobante: finalNumero, file_url: publicUrl, estado: 'Pendiente', motivo_rechazo: null }); toast.success('¡Consignación corregida! Volverá a ser revisada. 🌟', { id: tid }); setEditingItem(null); reset();
       } else {
-        toast.loading('Guardando consignación...', { id: tid }); await mockDB.addConsignacion({ banco, valor: valorNumerico, numero_comprobante: finalNumero, file_url: publicUrl, auxiliar_id: user.id, auxiliar_name: user.full_name, empresa: user.empresa || 'ALPINA' }); toast.success('¡Consignación registrada correctamente! 🎉', { id: tid }); setSuccess(true);
+        toast.loading('Guardando consignación...', { id: tid }); await mockDB.addConsignacion({ banco, valor: valorNumerico, numero_comprobante: finalNumero, file_url: publicUrl, auxiliar_id: user.id, auxiliar_name: user.full_name, empresa: user.empresa || 'TAT', ...(esVendedora && nombreCliente.trim() ? { nombre_cliente: nombreCliente.trim() } : {}) }); toast.success('¡Consignación registrada correctamente! 🎉', { id: tid }); setSuccess(true);
       }
     } catch (err) { console.error(err); toast.dismiss(tid); toast.error('❌ Error: ' + (err.message || 'No se pudo guardar la consignación')); } finally { setLoading(false); fetchHistory(); }
   };
 
-  const reset = () => { setSuccess(false); setPrimarySelected(null); setBanco(''); setShowSub(false); setValor(''); setNumero(''); setFile(null); };
+  const reset = () => { setSuccess(false); setPrimarySelected(null); setBanco(''); setShowSub(false); setValor(''); setNumero(''); setNombreCliente(''); setFile(null); };
 
   if (success) return (<div className="success-screen animate-in"><div className="success-icon-wrap"><CheckCircle2 size={44} color="var(--neon-green)" /></div><h2 style={{ marginBottom: '0.5rem' }}>¡Consignación Enviada!</h2><p style={{ maxWidth: 260, margin: '0 auto 0.5rem' }}>Registrado en <strong style={{ color: 'var(--text-1)' }}>{banco}</strong></p><p style={{ maxWidth: 260, margin: '0 auto 2rem', fontSize: '0.8rem' }}>Pendiente de validación por la cajera.</p><button className="btn btn-primary" onClick={reset}>Registrar otra</button></div>);
 
@@ -157,6 +165,12 @@ const AuxiliarPanel = ({ user }) => {
       )}
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+        {['30415268', '42149772', '1047467581', '25181643'].includes(user.cedula) && (
+          <div>
+            <label className="form-label"><span style={{ display: 'inline', marginRight: 4 }}>👤</span>Nombre del Cliente</label>
+            <input type="text" className="form-control" placeholder="Ej. Juan Pérez" value={nombreCliente} onChange={e => setNombreCliente(e.target.value)} required />
+          </div>
+        )}
         <div>
           <label className="form-label"><Banknote size={12} style={{ display: 'inline', marginRight: 4 }} />Valor Consignado ($)</label>
           <input type="text" inputMode="numeric" className="form-control" placeholder="0" value={valor} onChange={handleValorChange} style={{ fontSize: '1.1rem', fontWeight: 700 }} required />

@@ -9,6 +9,11 @@ export const AUXILIARES = [
   { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
   { cedula: '42161511',   nombre: 'JUDY FRANCY BUITRAGO', empresa: 'TAT' },
   { cedula: '42131453',   nombre: 'DIANA GARCIA', empresa: 'TAT' },
+  // Vendedoras TAT (campo nombre_cliente al registrar)
+  { cedula: '30415268',   nombre: 'MARIA CARMENZA GUAPACHA CASTAÑEDA', empresa: 'TAT' },
+  { cedula: '42149772',   nombre: 'MARIA DEL PILAR ARANGO BLANDON', empresa: 'TAT' },
+  { cedula: '1047467581', nombre: 'PAULA ANDREA RAMOS BORJA', empresa: 'TAT' },
+  { cedula: '25181643',   nombre: 'YEIMY LUCIA HOLGUIN OSORIO', empresa: 'TAT' },
 ];
 
 export const mockAuth = {
@@ -23,7 +28,7 @@ export const mockAuth = {
 
     const productionUsers = [
       { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
-      { id: 'cajera-diana-tat', email: 'diana.tat@consigcontrol.com', role: 'cajera', full_name: 'Diana Garcia (TAT)', pass: 'Tat*2026Di', empresa: 'TAT' },
+      { id: 'cajera-diana-tat', email: 'diana.tat@consigcontrol.com', role: 'cartera', full_name: 'Diana Garcia (TAT)', pass: 'Tat*2026Di', empresa: 'TAT' },
       { id: 'admin-tat', email: 'admin.tat@consigcontrol.com', role: 'admin', full_name: 'Admin TAT', pass: 'TatAdmin*2026' },
     ];
 
@@ -48,7 +53,7 @@ export const mockDB = {
   },
   getConsignacionById: async (id) => { const { data, error } = await supabase.from('consignaciones').select('*').eq('id', id).single(); if (error) throw error; return { ...data, fecha: (data.estado === 'Cuadrado' && data.fecha_cuadrado) ? data.fecha_cuadrado : data.created_at }; },
   checkDuplicate: async (numero_comprobante, excludeId = null) => { let query = supabase.from('consignaciones').select('id').eq('numero_comprobante', numero_comprobante).neq('estado', 'Rechazado'); if (excludeId) query = query.neq('id', excludeId); const { data, error } = await query.limit(1); if (error) throw error; return data && data.length > 0; },
-  addConsignacion: async (formData) => { const { data, error } = await supabase.from('consignaciones').insert([ { banco: formData.banco, valor: formData.valor, numero_comprobante: formData.numero_comprobante, file_url: formData.file_url, auxiliar_id: formData.auxiliar_id, auxiliar_name: formData.auxiliar_name, empresa: formData.empresa || 'TAT', estado: 'Pendiente' } ]).select(); if (error) throw error; return { data: data[0], error: null }; },
+  addConsignacion: async (formData) => { const { data, error } = await supabase.from('consignaciones').insert([ { banco: formData.banco, valor: formData.valor, numero_comprobante: formData.numero_comprobante, file_url: formData.file_url, auxiliar_id: formData.auxiliar_id, auxiliar_name: formData.auxiliar_name, empresa: formData.empresa || 'TAT', estado: 'Pendiente', ...(formData.nombre_cliente ? { nombre_cliente: formData.nombre_cliente } : {}) } ]).select(); if (error) throw error; return { data: data[0], error: null }; },
   updateConsignacion: async (id, updateData) => { const { error } = await supabase.from('consignaciones').update(updateData).eq('id', id); if (error) throw error; return { error: null }; },
   updateConsignacionStatus: async (id, estado, motivo = null, cajera_id = null, cajera_name = null) => { const updateData = { estado }; if (estado === 'Validado') { updateData.motivo_rechazo = null; if (cajera_name) updateData.cajera_name = cajera_name; } else if (estado === 'Rechazado') { if (motivo) updateData.motivo_rechazo = motivo; if (cajera_name) updateData.cajera_name = cajera_name; } else if (estado === 'Cuadrado') { updateData.fecha_cuadrado = new Date().toISOString(); } const { error } = await supabase.from('consignaciones').update(updateData).eq('id', id); if (error) throw error; return { error: null }; },
   deleteConsignacion: async (id) => { const { error } = await supabase.from('consignaciones').delete().eq('id', id); if (error) throw error; return { error: null }; },

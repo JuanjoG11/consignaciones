@@ -122,6 +122,7 @@ const AuxiliarPanel = ({ user }) => {
   const [showSub, setShowSub]   = useState(false); // mostrando sub-opciones Alpina
   const [valor, setValor]       = useState('');
   const [numero, setNumero]     = useState('');
+  const [nombreCliente, setNombreCliente] = useState(''); // solo TAT
   const [file, setFile]         = useState(null);
   const [loading, setLoading]   = useState(false);
   const [success, setSuccess]   = useState(false);
@@ -276,6 +277,18 @@ const AuxiliarPanel = ({ user }) => {
       finalNumero = `${banco.toUpperCase()}-${Date.now()}`;
     }
 
+    // Validar nombre de cliente para vendedoras TAT
+    const esVendedora = ['30415268', '42149772', '1047467581', '25181643'].includes(user.cedula);
+    if (esVendedora && !nombreCliente.trim()) {
+      setModal({
+        title: 'Falta el Cliente',
+        message: 'Por favor ingresa el nombre del cliente.',
+        icon: '👤',
+        color: 'var(--neon-yellow)'
+      });
+      return;
+    }
+
     console.log("Submit iniciado", { banco, valor, numero: finalNumero, hasFile: !!file });
 
     // Si es edición, la foto no es requerida obligatoriamente (se conserva la anterior si no se sube otra)
@@ -364,6 +377,7 @@ const AuxiliarPanel = ({ user }) => {
           auxiliar_id: user.id,
           auxiliar_name: user.full_name,
           empresa: user.empresa || 'GENERAL',
+          ...(esVendedora && nombreCliente.trim() ? { nombre_cliente: nombreCliente.trim() } : {}),
         });
 
         toast.success('¡Consignación registrada correctamente! 🎉', { id: tid });
@@ -396,6 +410,7 @@ const AuxiliarPanel = ({ user }) => {
     setShowSub(false);
     setValor('');
     setNumero('');
+    setNombreCliente('');
     setFile(null);
   };
 
@@ -585,6 +600,24 @@ const AuxiliarPanel = ({ user }) => {
 
       {/* ── FORM ── */}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+        {/* Nombre del cliente — solo para vendedoras TAT */}
+        {['30415268', '42149772', '1047467581', '25181643'].includes(user.cedula) && (
+          <div>
+            <label className="form-label">
+              <span style={{ display: 'inline', marginRight: 4 }}>👤</span>
+              Nombre del Cliente
+            </label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Ej. Juan Pérez"
+              value={nombreCliente}
+              onChange={e => setNombreCliente(e.target.value)}
+              required
+            />
+          </div>
+        )}
+
         {/* Valor */}
         <div>
           <label className="form-label">

@@ -3,6 +3,7 @@ import Login from './components/Login';
 import AuxiliarPanel from './components/AuxiliarPanel';
 import CajeraPanel from './components/CajeraPanel';
 import AdminPanel from './components/AdminPanel';
+import CarteraPanel from './components/CarteraPanel';
 import { mockAuth } from './lib/supabase';
 import { LogOut, ShieldCheck, LayoutDashboard, ClipboardCheck, BarChart3, PlusCircle, User } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
@@ -39,8 +40,8 @@ function App() {
     </>
   );
 
-  const roleLabel = { auxiliar: 'Auxiliar', cajera: 'Cajera', admin: 'Admin' }[user.role];
-  const roleColor = { auxiliar: 'var(--neon-blue)', cajera: 'var(--neon-green)', admin: 'var(--neon-purple)' }[user.role];
+  const roleLabel = { auxiliar: 'Auxiliar', cajera: 'Cajera', admin: 'Admin', cartera: 'Cartera' }[user.role];
+  const roleColor = { auxiliar: 'var(--neon-blue)', cajera: 'var(--neon-green)', admin: 'var(--neon-purple)', cartera: '#9b5cff' }[user.role];
 
   return (
     <div className="app-shell">
@@ -116,6 +117,7 @@ function App() {
           </div>
         )}
         {user.role === 'cajera'   && <CajeraPanel   user={user} />}
+        {user.role === 'cartera'  && <CarteraPanel  user={user} />}
         {user.role === 'admin'    && <AdminPanel     user={user} />}
       </main>
     </div>

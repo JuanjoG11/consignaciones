@@ -35,3 +35,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_comprobante_unico
 
 -- 3. Configurar el Storage para las imágenes (Opcional, pero recomendado)
 -- Ve a la sección 'Storage' en Supabase y crea un Bucket llamado 'comprobantes' y ponlo como PUBLIC.
+
+-- ── Migración: campos para rol Cartera ──────────────────────────────────────
+-- Ejecutar en el SQL Editor de Supabase
+
+-- Campo para el nombre del cliente (lo ingresan los vendedores TAT)
+ALTER TABLE public.consignaciones
+  ADD COLUMN IF NOT EXISTS nombre_cliente TEXT;
+
+-- Campo para el número de cuadre (lo ingresa Diana al cuadrar)
+ALTER TABLE public.consignaciones
+  ADD COLUMN IF NOT EXISTS numero_cuadre TEXT;
