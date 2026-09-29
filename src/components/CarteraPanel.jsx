@@ -11,17 +11,24 @@ const BANCO_COLORS = {
   'Buzon Atlas':           { color: '#00e5a0', bg: 'rgba(0,229,160,0.15)',   emoji: '📬' },
   'Bancolombia 6061':      { color: '#ffd166', bg: 'rgba(255,209,102,0.15)', emoji: '🟡' },
   'Davivienda 8703':       { color: '#ff4d6d', bg: 'rgba(255,77,109,0.15)',  emoji: '🔴' },
+  'Alpina Agrario':        { color: '#4f8eff', bg: 'rgba(79,142,255,0.15)',  emoji: '🌾' },
+  'Alpina Davivienda':     { color: '#ff4d6d', bg: 'rgba(255,77,109,0.15)',  emoji: '🏦' },
+  'Alpina Bancolombia':    { color: '#ffd166', bg: 'rgba(255,209,102,0.15)', emoji: '🏧' },
+  'Buzón':                 { color: '#00e5a0', bg: 'rgba(0,229,160,0.15)',   emoji: '📬' },
   'Gasto':                 { color: '#ff9f1c', bg: 'rgba(255,159,28,0.15)',  emoji: '💸' },
   'Retención':             { color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', emoji: '📄' },
 };
 
 const ESTADOS = ['Pendiente', 'Validado', 'Cuadrado', 'Rechazado'];
 
-// IDs de los auxiliares que Diana (cartera) puede ver.
-// Son los auxiliar_id que tienen empresa TAT más el propio id de Diana como auxiliar.
-// El filtro se aplica por auxiliar_id de las consignaciones.
-// Cédulas de las 4 vendedoras que Diana (cartera) puede ver
-const CEDULAS_VENDEDORAS = ['30415268', '42149772', '1047467581', '25181643'];
+// Cédulas de las 4 vendedoras TAT
+const CEDULAS_VENDEDORAS_TAT = ['30415268', '42149772', '1047467581', '25181643'];
+
+// Cédulas de los 10 vendedores Alpina / TYM
+const CEDULAS_VENDEDORES_ALPINA = [
+  '1112400353', '1002954362', '24646047', '1059698128', '1093212000',
+  '24397385', '1088004142', '1053810420', '1094940114', '1088253404',
+];
 
 const CarteraPanel = ({ user }) => {
   const [consignaciones, setConsignaciones] = useState([]);
@@ -45,18 +52,21 @@ const CarteraPanel = ({ user }) => {
   // Modal cuadrar (con número de cuadre)
   const [cuadrarModal, setCuadrarModal] = useState({ open: false, id: null, numeroCuadre: '' });
 
-  // IDs permitidos: solo las 4 vendedoras + Diana misma como auxiliar.
-  // El portal principal genera IDs con empresa (aux_CED_TAT) y el tat_portal sin ella (aux_CED).
-  // Cubrimos ambos formatos para no perder registros.
-  const vendedorasIds = CEDULAS_VENDEDORAS.flatMap(c => [`aux_${c}_TAT`, `aux_${c}`]);
-  const dianaAuxId    = [`aux_42131453_TAT`, `aux_42131453`];
-  const allowedIds    = [...new Set([...vendedorasIds, ...dianaAuxId])];
+  const isTat = user?.empresa === 'TAT';
+  const cedulasVendedores = isTat ? CEDULAS_VENDEDORAS_TAT : CEDULAS_VENDEDORES_ALPINA;
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await mockDB.getConsignaciones();
-    // Solo consignaciones de las vendedoras + Diana como auxiliar
-    const filtered = data.filter(c => allowedIds.includes(c.auxiliar_id));
+    // Filtro según la cartera activa:
+    // Si Cartera TAT: vendedoras TAT + Diana
+    // Si Cartera TYM / Alpina: vendedores Alpina/TYM + Diana
+    const filtered = data.filter(c => {
+      const auxId = String(c.auxiliar_id || '');
+      const isDiana = auxId.includes('42131453');
+      const isVendedor = cedulasVendedores.some(ced => auxId.includes(ced));
+      return isVendedor || isDiana;
+    });
     setConsignaciones(filtered);
     if (!silent) setLoading(false);
   };
@@ -232,7 +242,7 @@ const CarteraPanel = ({ user }) => {
       {/* Hero */}
       <div className="hero-card" style={{ background: 'linear-gradient(135deg, #9b5cff 0%, #4f8eff 100%)', boxShadow: 'var(--shadow-glow-purple)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="hero-label">💼 Panel Cartera · TAT</div>
+          <div className="hero-label">💼 Panel Cartera · {isTat ? 'TAT' : 'TYM'}</div>
           {pendientes > 0 && (
             <div className="pulse-badge" style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', boxShadow: '0 0 10px #fff', animation: 'pulse 1.5s infinite' }} />
