@@ -401,5 +401,33 @@ export const mockDB = {
       .getPublicUrl(filePath);
 
     return data.publicUrl;
-  }
+  },
+
+  // OBTENER URL FIRMADA para ver una imagen (válida 1 hora)
+  // Úsala cuando el bucket NO es público o cuando el usuario no tiene sesión Supabase.
+  getSignedUrl: async (fileUrl, expiresIn = 3600) => {
+    if (!fileUrl) return null;
+    // Extraer el path relativo dentro del bucket desde la URL pública
+    // Formato típico: https://<project>.supabase.co/storage/v1/object/public/comprobantes/<path>
+    const marker = '/object/public/comprobantes/';
+    const markerSigned = '/object/sign/comprobantes/';
+    let filePath = null;
+    if (fileUrl.includes(marker)) {
+      filePath = decodeURIComponent(fileUrl.split(marker)[1]);
+    } else if (fileUrl.includes(markerSigned)) {
+      // Ya es una signed URL, extraer el path antes del '?'
+      filePath = decodeURIComponent(fileUrl.split(markerSigned)[1].split('?')[0]);
+    }
+    if (!filePath) return fileUrl; // no reconocemos el formato, devolver tal cual
+
+    const { data, error } = await supabase.storage
+      .from('comprobantes')
+      .createSignedUrl(filePath, expiresIn);
+
+    if (error) {
+      console.warn('getSignedUrl error:', error);
+      return fileUrl; // fallback a la URL original
+    }
+    return data.signedUrl;
+  },
 };

@@ -40,6 +40,7 @@ const CajeraPanel = ({ user }) => {
   });
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [selected, setSelected]         = useState(null);
+  const [signedUrl, setSignedUrl]       = useState(null);
   const [showFilters, setShowFilters]   = useState(false);
   const [prevPendientes, setPrevPendientes] = useState(0);
 
@@ -53,6 +54,16 @@ const CajeraPanel = ({ user }) => {
       }
     }
   }, [selected]);
+
+  // Generar signed URL cada vez que se selecciona una consignación
+  useEffect(() => {
+    if (!selected?.file_url) {
+      setSignedUrl(null);
+      return;
+    }
+    setSignedUrl(null); // limpiar mientras carga
+    mockDB.getSignedUrl(selected.file_url).then(url => setSignedUrl(url));
+  }, [selected?.id]);
 
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, motivo: '' });
 
@@ -522,12 +533,26 @@ console.log('Filtered consignaciones count:', filtered.length);
                       <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', padding: '3rem', textAlign: 'center', border: '2px dashed var(--border)' }}>
                         <Clock size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
                         <p>Documento PDF Adjunto</p>
-                        <a href={selected.file_url} target="_blank" className="btn btn-ghost" style={{ marginTop: '1rem' }}>Ver PDF completo</a>
+                        <a href={signedUrl || selected.file_url} target="_blank" className="btn btn-ghost" style={{ marginTop: '1rem' }}>Ver PDF completo</a>
                       </div>
                     ) : (
                       <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', background: '#000', display: 'flex', justifyContent: 'center' }}>
-                        <img src={selected.file_url} alt="Evidencia" style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain' }} />
-                        <a href={selected.file_url} target="_blank" className="btn btn-ghost" style={{ position: 'absolute', bottom: '1rem', right: '1rem', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+                        {signedUrl ? (
+                          <img
+                            src={signedUrl}
+                            alt="Evidencia"
+                            style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain' }}
+                            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                          />
+                        ) : (
+                          <div style={{ width: '100%', minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div className="spinner" />
+                          </div>
+                        )}
+                        <div style={{ display: 'none', alignItems: 'center', justifyContent: 'center', padding: '2rem', color: 'var(--text-3)', flexDirection: 'column', gap: '0.5rem' }}>
+                          <span>⚠️ No se pudo cargar la imagen</span>
+                        </div>
+                        <a href={signedUrl || selected.file_url} target="_blank" className="btn btn-ghost" style={{ position: 'absolute', bottom: '1rem', right: '1rem', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
                           <Eye size={16} /> Ver original
                         </a>
                       </div>
@@ -582,7 +607,9 @@ console.log('Filtered consignaciones count:', filtered.length);
                   </div>
 
                   {selected.file_url && !selected.file_url.includes('pdf') && (
-                    <img src={selected.file_url} style={{ width: '100%', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
+                    signedUrl
+                      ? <img src={signedUrl} style={{ width: '100%', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} />
+                      : <div style={{ width: '100%', minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="spinner" /></div>
                   )}
 
                   {(() => {
