@@ -65,6 +65,7 @@ export const AUXILIARES = [
   { cedula: '42149772',   nombre: 'MARIA DEL PILAR ARANGO BLANDON', empresa: 'TAT' },
   { cedula: '1047467581', nombre: 'PAULA ANDREA RAMOS BORJA', empresa: 'TAT' },
   { cedula: '25181643',   nombre: 'YEIMY LUCIA HOLGUIN OSORIO', empresa: 'TAT' },
+  { cedula: '79643219',   nombre: 'OMAR ALBERTO BERMUDEZ', empresa: 'TAT' },
   // Vendedores Alpina / TYM (tienen campo nombre_cliente al registrar y van a Cartera TYM)
   { cedula: '1112400353', nombre: 'KAREN JULIETH CARVAJAL RAMIREZ', empresa: 'ALPINA' },
   { cedula: '1002954362', nombre: 'BLADIMIR HOYOS', empresa: 'ALPINA' },
@@ -79,6 +80,7 @@ export const AUXILIARES = [
   { cedula: '1193105349', nombre: 'MICHAEL CONTRERAS HURTADO', empresa: 'ALPINA' },
   { cedula: '1089097145', nombre: 'MANUEL ALEJANDRO RAMIREZ OVALLE', empresa: 'ALPINA' },
   { cedula: '1088305468', nombre: 'JULIAN DAVID RODRIGUEZ MONTOYA', empresa: 'TAT' },
+  { cedula: '79643219',   nombre: 'OMAR ALBERTO BERMUDEZ', empresa: 'TAT' },
   { cedula: '901568117',  nombre: 'CAJA TAT', empresa: 'TAT' },
   { cedula: '1094956074', nombre: 'YERFREY FLORES ARROYAVE', empresa: 'ALPINA' },
   { cedula: '10030398',   nombre: 'JOHN RAUL GRAJALES CANO', empresa: 'ALPINA' },
