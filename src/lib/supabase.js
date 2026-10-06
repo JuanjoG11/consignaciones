@@ -113,6 +113,7 @@ export const AUXILIARES = [
   { cedula: '1088030902', nombre: 'JEAN MICHAEL ZULUAGA MORANTE', empresa: 'ZENU' },
   { cedula: '1004669887', nombre: 'CRISTIAN MAURICIO GIRALDO RAMIREZ', empresa: 'ZENU' },
   { cedula: '1004776445', nombre: 'CRISTIAN MENDOZA', empresa: 'ZENU' },
+  { cedula: '1088038370', nombre: 'MICHAEL HIGUITA', empresa: 'ZENU' },
   // TYM registrado para ambas empresas
   { cedula: '900973932',  nombre: 'TYM', empresa: 'ALPINA' },
   { cedula: '900973932',  nombre: 'TYM', empresa: 'ZENU' },
