@@ -152,7 +152,12 @@ const AuxiliarPanel = ({ user }) => {
 
   const fetchHistory = async () => {
     try {
-      const data = await mockDB.getConsignaciones();
+      // Traer solo los últimos 90 días para no saturar Supabase con miles de registros
+      const now = new Date();
+      const dateFrom = new Date(now);
+      dateFrom.setDate(dateFrom.getDate() - 90);
+      const fmt = (d) => d.toISOString().split('T')[0];
+      const data = await mockDB.getConsignaciones({ dateFrom: fmt(dateFrom), dateTo: fmt(now) });
       // Filtrar por el ID del auxiliar actual
       const userHistory = data.filter(c => c.auxiliar_id === user.id);
       setHistory(userHistory);
@@ -166,7 +171,7 @@ const AuxiliarPanel = ({ user }) => {
   useEffect(() => {
     fetchHistory();
     // Actualizar cada 30 segundos por si la cajera valida algo
-    const interval = setInterval(fetchHistory, 30000);
+    const interval = setInterval(fetchHistory, 120000);
     return () => clearInterval(interval);
   }, [user.id]);
 

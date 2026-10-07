@@ -62,17 +62,18 @@ const AdminPanel = ({ user }) => {
 
   const fetchConsignaciones = async (silent = false) => {
     if (!silent) setLoading(true);
-    const data = await mockDB.getConsignaciones();
-    console.log('Fetched consignaciones', data);
-    // Si el usuario es admin en la app principal, mostrar según su empresa
-    if (user && user.role === 'admin') {
-      if (user.empresa === 'TAT') {
-        setConsignaciones((data || []).filter(d => d.empresa === 'TAT'));
+    const data = await mockDB.getConsignaciones({ dateFrom: dateRange.start, dateTo: dateRange.end });
+    // Solo actualizar si llegaron datos; si Supabase falló, conservar lo que había
+    if (data && data.length > 0) {
+      if (user && user.role === 'admin') {
+        if (user.empresa === 'TAT') {
+          setConsignaciones(data.filter(d => d.empresa === 'TAT'));
+        } else {
+          setConsignaciones(data.filter(d => d.empresa !== 'TAT'));
+        }
       } else {
-        setConsignaciones((data || []).filter(d => d.empresa !== 'TAT'));
+        setConsignaciones(data);
       }
-    } else {
-      setConsignaciones(data);
     }
     if (!silent) setLoading(false);
   };
@@ -94,9 +95,9 @@ const AdminPanel = ({ user }) => {
 
   useEffect(() => {
     fetchConsignaciones();
-    const interval = setInterval(() => fetchConsignaciones(true), 5000);
+    const interval = setInterval(() => fetchConsignaciones(true), 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [dateRange.start, dateRange.end]);
 
   const isCuadrado = (c) => String(c.estado || '').trim().toLowerCase() === 'cuadrado';
 

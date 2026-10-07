@@ -57,25 +57,23 @@ const CarteraPanel = ({ user }) => {
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
-    const data = await mockDB.getConsignaciones();
-    // Filtro según la cartera activa:
-    // Si Cartera TAT: vendedoras TAT + Diana
-    // Si Cartera TYM / Alpina: vendedores Alpina/TYM + Diana
-    const targetEmpresa = isTat ? 'TAT' : 'ALPINA';
-    const filtered = data.filter(c => {
-      const auxId = String(c.auxiliar_id || '');
-      // Diana aparece en ambas empresas; solo mostrar la del portal activo
-      const isDiana = auxId.includes('42131453') && c.empresa === targetEmpresa;
-      const isVendedor = cedulasVendedores.some(ced => auxId.includes(ced));
-      return isVendedor || isDiana;
-    });
-    setConsignaciones(filtered);
+    const data = await mockDB.getConsignaciones({ dateFrom: dateRange.start, dateTo: dateRange.end });
+    if (data && data.length > 0) {
+      const targetEmpresa = isTat ? 'TAT' : 'ALPINA';
+      const filtered = data.filter(c => {
+        const auxId = String(c.auxiliar_id || '');
+        const isDiana = auxId.includes('42131453') && c.empresa === targetEmpresa;
+        const isVendedor = cedulasVendedores.some(ced => auxId.includes(ced));
+        return isVendedor || isDiana;
+      });
+      setConsignaciones(filtered);
+    }
     if (!silent) setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-    const iv = setInterval(() => fetchData(true), 15000);
+    const iv = setInterval(() => fetchData(true), 60000);
 
     const channel = supabase
       .channel('cartera_changes')
@@ -88,7 +86,7 @@ const CarteraPanel = ({ user }) => {
       clearInterval(iv);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [dateRange.start, dateRange.end]);
 
   // ── Acciones ────────────────────────────────────────────────────────────────
 

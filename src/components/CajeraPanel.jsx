@@ -62,16 +62,25 @@ const CajeraPanel = ({ user }) => {
       return;
     }
     setSignedUrl(null); // limpiar mientras carga
-    mockDB.getSignedUrl(selected.file_url).then(url => setSignedUrl(url));
+    const loadUrl = async () => {
+      // Intentar hasta 4 veces con backoff progresivo
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        const url = await mockDB.getSignedUrl(selected.file_url);
+        if (url) { setSignedUrl(url); return; }
+        if (attempt < 4) await new Promise(r => setTimeout(r, attempt * 1500));
+      }
+      // Si todo falla, usar la URL original como último recurso
+      setSignedUrl(selected.file_url);
+    };
+    loadUrl();
   }, [selected?.id]);
 
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, motivo: '' });
 
   const fetch = async (silent = false) => {
     if (!silent) setLoading(true);
-    const data = await mockDB.getConsignaciones();
-    console.log(`Fetched ${data.length} consignaciones. Earliest: ${data.length ? new Date(data[data.length - 1].fecha).toISOString() : 'N/A'}, Latest: ${data.length ? new Date(data[0].fecha).toISOString() : 'N/A'}`);
-    setConsignaciones(data);
+    const data = await mockDB.getConsignaciones({ dateFrom: dateRange.start, dateTo: dateRange.end });
+    if (data && data.length > 0) setConsignaciones(data);
     if (!silent) setLoading(false);
   };
 
@@ -101,7 +110,7 @@ const CajeraPanel = ({ user }) => {
   useEffect(() => {
     fetch();
     // 1. Polling de respaldo (cada 15s es suficiente con Realtime)
-    const iv = setInterval(() => fetch(true), 15000);
+    const iv = setInterval(() => fetch(true), 60000);
 
     // 2. SUSCRIPCIÓN REALTIME (Instante)
     const channel = supabase
@@ -128,7 +137,7 @@ const CajeraPanel = ({ user }) => {
       clearInterval(iv);
       supabase.removeChannel(channel);
     };
-  }, [user.empresa]);
+  }, [user.empresa, dateRange.start, dateRange.end]);
 
   const handleAction = async (id, estado, motivoParam = null) => {
     let motivo = null;
@@ -210,8 +219,6 @@ const CajeraPanel = ({ user }) => {
     const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
     return okBanco && okEstado && okSearch && okStart && okEnd && okEmpresa;
   });
-console.log('Date range filter:', dateRange);
-console.log('Filtered consignaciones count:', filtered.length);
 
   function okEndFunc(cDate, end) {
     if (!end) return true;
@@ -542,15 +549,27 @@ console.log('Filtered consignaciones count:', filtered.length);
                             src={signedUrl}
                             alt="Evidencia"
                             style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain' }}
-                            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                            onError={e => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
                           />
                         ) : (
                           <div style={{ width: '100%', minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <div className="spinner" />
                           </div>
                         )}
-                        <div style={{ display: 'none', alignItems: 'center', justifyContent: 'center', padding: '2rem', color: 'var(--text-3)', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'none', alignItems: 'center', justifyContent: 'center', padding: '2rem', color: 'var(--text-3)', flexDirection: 'column', gap: '1rem' }}>
                           <span>⚠️ No se pudo cargar la imagen</span>
+                          <button
+                            className="btn btn-ghost"
+                            onClick={() => {
+                              setSignedUrl(null);
+                              mockDB.getSignedUrl(selected.file_url).then(url => setSignedUrl(url || selected.file_url));
+                            }}
+                          >
+                            🔄 Reintentar
+                          </button>
                         </div>
                         <a href={signedUrl || selected.file_url} target="_blank" className="btn btn-ghost" style={{ position: 'absolute', bottom: '1rem', right: '1rem', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
                           <Eye size={16} /> Ver original

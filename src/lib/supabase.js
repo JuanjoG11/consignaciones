@@ -231,31 +231,73 @@ export const mockAuth = {
 };
 
 export const mockDB = {
+  // Circuit breaker: si la BD falla, bloquea nuevas queries por 30s para no saturarla más
+  _dbDown: false,
+  _dbDownUntil: 0,
+  _markDbDown() {
+    this._dbDown = true;
+    this._dbDownUntil = Date.now() + 30000; // esperar 30s antes de reintentar
+    console.warn('⚠️ BD marcada como caída — pausando queries por 30s');
+  },
+  _checkDbUp() {
+    if (this._dbDown && Date.now() > this._dbDownUntil) {
+      this._dbDown = false;
+      console.info('✅ Reintentando conexión a BD...');
+    }
+    return !this._dbDown;
+  },
+
   // OBTENER CONSIGNACIONES (REAL)
-  getConsignaciones: async () => {
-    // Supabase limits responses to 1000 rows by default (server-side max_rows).
-    // We paginate to fetch ALL records.
+  // dateFrom / dateTo (strings 'YYYY-MM-DD') filtran en servidor para evitar timeouts.
+  // Si no se pasan, trae el mes actual por defecto.
+  getConsignaciones: async ({ dateFrom, dateTo } = {}) => {
+    // Circuit breaker: si la BD está marcada como caída, no hacer la query
+    if (!mockDB._checkDbUp()) {
+      console.warn('BD en pausa por circuit breaker — saltando query');
+      return [];
+    }
+
+    // Mes actual como fallback si no se especifica rango
+    if (!dateFrom && !dateTo) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const daysInMonth = new Date(year, now.getMonth() + 1, 0).getDate();
+      dateFrom = `${year}-${month}-01`;
+      dateTo   = `${year}-${month}-${String(daysInMonth).padStart(2, '0')}`;
+    }
+
     const PAGE_SIZE = 1000;
     let allData = [];
     let from = 0;
     let keepFetching = true;
 
     while (keepFetching) {
-      const { data, error } = await supabase
+      let query = supabase
         .from('consignaciones')
-        .select('*')
+        .select('id,banco,valor,numero_comprobante,file_url,auxiliar_id,auxiliar_name,empresa,estado,motivo_rechazo,cajera_name,nombre_cliente,created_at,fecha_cuadrado')
         .order('created_at', { ascending: false })
         .range(from, from + PAGE_SIZE - 1);
 
+      // Filtro de fechas en servidor (.gte y .lte encadenados es la sintaxis correcta de PostgREST)
+      if (dateFrom) query = query.gte('created_at', `${dateFrom}T00:00:00.000Z`);
+      if (dateTo)   query = query.lte('created_at', `${dateTo}T23:59:59.999Z`);
+
+      const { data, error } = await query;
+
       if (error) {
-        console.error("Error Supabase:", error);
-        return allData; // return whatever we have so far
+        console.error("Error Supabase:", JSON.stringify(error));
+        // Si es timeout (57014) o upstream timeout, activar circuit breaker
+        if (error.code === '57014' || error.message?.includes('timeout')) {
+          mockDB._markDbDown();
+        }
+        return allData;
       }
 
       allData = allData.concat(data);
 
       if (data.length < PAGE_SIZE) {
-        keepFetching = false; // last page
+        keepFetching = false;
       } else {
         from += PAGE_SIZE;
       }
@@ -426,14 +468,27 @@ export const mockDB = {
     }
     if (!filePath) return fileUrl; // no reconocemos el formato, devolver tal cual
 
-    const { data, error } = await supabase.storage
-      .from('comprobantes')
-      .createSignedUrl(filePath, expiresIn);
+    // Retry hasta 3 veces con backoff en caso de timeout de Storage
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const { data, error } = await supabase.storage
+        .from('comprobantes')
+        .createSignedUrl(filePath, expiresIn);
 
-    if (error) {
+      if (!error) return data.signedUrl;
+
+      const isTimeout = error.message?.toLowerCase().includes('timeout') ||
+                        error.statusCode === 544 || error.status === 544;
+
+      if (isTimeout && attempt < MAX_RETRIES) {
+        console.warn(`getSignedUrl timeout, reintento ${attempt}/${MAX_RETRIES}...`);
+        await new Promise(r => setTimeout(r, attempt * 1000)); // 1s, 2s
+        continue;
+      }
+
       console.warn('getSignedUrl error:', error);
       return fileUrl; // fallback a la URL original
     }
-    return data.signedUrl;
+    return fileUrl;
   },
 };
