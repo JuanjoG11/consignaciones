@@ -61,9 +61,11 @@ const CarteraPanel = ({ user }) => {
     // Filtro según la cartera activa:
     // Si Cartera TAT: vendedoras TAT + Diana
     // Si Cartera TYM / Alpina: vendedores Alpina/TYM + Diana
+    const targetEmpresa = isTat ? 'TAT' : 'ALPINA';
     const filtered = data.filter(c => {
       const auxId = String(c.auxiliar_id || '');
-      const isDiana = auxId.includes('42131453');
+      // Diana aparece en ambas empresas; solo mostrar la del portal activo
+      const isDiana = auxId.includes('42131453') && c.empresa === targetEmpresa;
       const isVendedor = cedulasVendedores.some(ced => auxId.includes(ced));
       return isVendedor || isDiana;
     });
