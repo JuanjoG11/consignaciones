@@ -73,13 +73,39 @@ const CarteraPanel = ({ user }) => {
 
   useEffect(() => {
     fetchData();
-    const iv = setInterval(() => fetchData(true), 60000);
+
+    // Respaldo cada 5 min por si Realtime falla — el canal cubre actualizaciones al instante
+    const iv = setInterval(() => fetchData(true), 300000);
 
     const channel = supabase
       .channel('cartera_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'consignaciones' }, () => {
-        fetchData(true);
-      })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'consignaciones' },
+        () => {
+          // INSERT siempre requiere fetch completo para traer el nuevo registro y filtrarlo
+          fetchData(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'consignaciones' },
+        (payload) => {
+          // Actualizar solo el registro cambiado en el estado local — sin query adicional
+          setConsignaciones(prev => prev.map(c =>
+            c.id === payload.new.id
+              ? { ...c, ...payload.new, fecha: (payload.new.estado === 'Cuadrado' && payload.new.fecha_cuadrado) ? payload.new.fecha_cuadrado : payload.new.created_at }
+              : c
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'consignaciones' },
+        (payload) => {
+          setConsignaciones(prev => prev.filter(c => c.id !== payload.old.id));
+        }
+      )
       .subscribe();
 
     return () => {

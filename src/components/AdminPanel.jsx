@@ -53,12 +53,8 @@ const AdminPanel = ({ user }) => {
     const end = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${daysInMonth}`;
     setDateRange({ start, end });
   };
-
-  // Set default al mes actual al montar
-  useEffect(() => {
-    const now = new Date();
-    setMonthRange(now.getMonth());
-  }, []);
+  // Nota: no hay useEffect para setMonthRange al montar — el useState ya inicializa
+  // el rango al mes actual, así se evita un segundo fetch innecesario al arrancar.
 
   const fetchConsignaciones = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -95,7 +91,8 @@ const AdminPanel = ({ user }) => {
 
   useEffect(() => {
     fetchConsignaciones();
-    const interval = setInterval(() => fetchConsignaciones(true), 60000);
+    // Sin Realtime en Admin — polling cada 5 min como respaldo suficiente
+    const interval = setInterval(() => fetchConsignaciones(true), 300000);
     return () => clearInterval(interval);
   }, [dateRange.start, dateRange.end]);
 

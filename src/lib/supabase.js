@@ -313,10 +313,10 @@ export const mockDB = {
   getConsignacionById: async (id) => {
     const { data, error } = await supabase
       .from('consignaciones')
-      .select('*')
+      .select('id,banco,valor,numero_comprobante,file_url,auxiliar_id,auxiliar_name,empresa,estado,motivo_rechazo,cajera_name,nombre_cliente,numero_cuadre,created_at,fecha_cuadrado')
       .eq('id', id)
       .single();
-    
+
     if (error) throw error;
     return {
       ...data,
@@ -328,13 +328,22 @@ export const mockDB = {
   // Solo bloquea si el número de comprobante ya existe en un registro activo
   // (estado distinto de 'Rechazado'). Usa ilike para comparación case-insensitive,
   // evitando falsos negativos por mayúsculas/minúsculas o espacios laterales.
+  // El filtro de fecha limita el escaneo a los últimos 12 meses para reducir Disk IO;
+  // comprobantes más antiguos se asumen ya conciliados y no bloquean el registro.
   checkDuplicate: async (numero_comprobante, excludeId = null) => {
     const numeroLimpio = String(numero_comprobante).trim();
+
+    // Ventana de 12 meses hacia atrás
+    const since = new Date();
+    since.setFullYear(since.getFullYear() - 1);
+    const sinceStr = since.toISOString().split('T')[0];
+
     let query = supabase
       .from('consignaciones')
       .select('id, numero_comprobante')
       .ilike('numero_comprobante', numeroLimpio)
-      .neq('estado', 'Rechazado');
+      .neq('estado', 'Rechazado')
+      .gte('created_at', `${sinceStr}T00:00:00.000Z`);
 
     if (excludeId) {
       query = query.neq('id', excludeId);

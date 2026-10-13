@@ -109,26 +109,42 @@ const CajeraPanel = ({ user }) => {
 
   useEffect(() => {
     fetch();
-    // 1. Polling de respaldo (cada 15s es suficiente con Realtime)
-    const iv = setInterval(() => fetch(true), 60000);
 
-    // 2. SUSCRIPCIÓN REALTIME (Instante)
+    // SUSCRIPCIÓN REALTIME — actualiza estado local sin re-fetch para UPDATE/DELETE.
+    // Solo hace un fetch completo en INSERT (necesita traer el registro nuevo completo)
+    // y como respaldo cada 5 minutos por si Realtime falla.
+    const iv = setInterval(() => fetch(true), 300000); // respaldo cada 5 min
+
     const channel = supabase
       .channel('consignaciones_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'consignaciones' },
+        { event: 'INSERT', schema: 'public', table: 'consignaciones' },
         (payload) => {
-          console.log('Cambio detectado en Realtime:', payload);
-          fetch(true); // Refrescar lista ante cualquier cambio
-          
-          // Si el cambio es una inserción y es de mi empresa, avisar
-          if (payload.eventType === 'INSERT') {
-            const newItem = payload.new;
-            if (user.empresa && newItem.empresa === user.empresa) {
-              toast('🔔 Nueva consignación entrante', { icon: '🆕' });
-            }
+          fetch(true); // INSERT siempre requiere fetch para tener el registro completo
+          const newItem = payload.new;
+          if (user.empresa && newItem.empresa === user.empresa) {
+            toast('🔔 Nueva consignación entrante', { icon: '🆕' });
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'consignaciones' },
+        (payload) => {
+          // Actualizar solo el registro cambiado en el estado local — sin query adicional
+          setConsignaciones(prev => prev.map(c =>
+            c.id === payload.new.id
+              ? { ...c, ...payload.new, fecha: (payload.new.estado === 'Cuadrado' && payload.new.fecha_cuadrado) ? payload.new.fecha_cuadrado : payload.new.created_at }
+              : c
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'consignaciones' },
+        (payload) => {
+          setConsignaciones(prev => prev.filter(c => c.id !== payload.old.id));
         }
       )
       .subscribe();
