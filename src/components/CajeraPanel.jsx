@@ -1,9 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, Eye, X, Clock, SlidersHorizontal } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, CheckCircle, XCircle, Eye, X, Clock, SlidersHorizontal, CalendarDays } from 'lucide-react';
 import { supabase, mockDB } from '../lib/supabase';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, getISOWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// ── Utilidad: genera lista de semanas (lunes→domingo) hacia atrás desde hoy ──
+function buildWeekOptions(count = 8) {
+  const weeks = [];
+  const today = new Date();
+  for (let i = 0; i < count; i++) {
+    const ref   = subWeeks(today, i);
+    const start = startOfWeek(ref, { weekStartsOn: 1 }); // lunes
+    const end   = endOfWeek(ref,   { weekStartsOn: 1 }); // domingo
+    const label = `Semana ${getISOWeek(start)} · ${format(start, 'd MMM', { locale: es })} – ${format(end, 'd MMM', { locale: es })}`;
+    weeks.push({
+      value: `${format(start, 'yyyy-MM-dd')}|${format(end, 'yyyy-MM-dd')}`,
+      label,
+      start: format(start, 'yyyy-MM-dd'),
+      end:   format(end,   'yyyy-MM-dd'),
+    });
+  }
+  return weeks;
+}
 import toast from 'react-hot-toast';
+
+const WEEK_OPTIONS = buildWeekOptions(12);
 
 const BANCO_COLORS = {
   'Bancolombia 6061':      { color: '#ffd166', bg: 'rgba(255,209,102,0.15)', emoji: '🟡' },
@@ -43,6 +64,8 @@ const CajeraPanel = ({ user }) => {
   const [signedUrl, setSignedUrl]       = useState(null);
   const [showFilters, setShowFilters]   = useState(false);
   const [prevPendientes, setPrevPendientes] = useState(0);
+  // Semana seleccionada: 'custom' = usa dateRange manual, '' = sin filtro semana
+  const [weekFilter, setWeekFilter]     = useState('');
 
   // DEBUG: inspeccionar estado crudo cuando se selecciona una consignación
   useEffect(() => {
@@ -248,6 +271,43 @@ const CajeraPanel = ({ user }) => {
   const validadasPorCuadrar = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'validado').length;
   const cuadradas = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'cuadrado').length;
 
+  // Handler: al elegir semana ajusta el dateRange para que fetch traiga esos días
+  const handleWeekChange = (value) => {
+    setWeekFilter(value);
+    if (!value) return; // sin semana = deja el rango como está
+    const opt = WEEK_OPTIONS.find(w => w.value === value);
+    if (opt) setDateRange({ start: opt.start, end: opt.end });
+  };
+
+  // Resumen de la semana activa (sobre los datos ya cargados = filtered por empresa)
+  const weekSummary = useMemo(() => {
+    // Determinar el rango efectivo de la semana activa
+    let rangeStart = dateRange.start;
+    let rangeEnd   = dateRange.end;
+    if (weekFilter) {
+      const opt = WEEK_OPTIONS.find(w => w.value === weekFilter);
+      if (opt) { rangeStart = opt.start; rangeEnd = opt.end; }
+    }
+
+    const inRange = companyConsignaciones.filter(c => {
+      const d = c.fecha.split('T')[0];
+      return (!rangeStart || d >= rangeStart) && (!rangeEnd || d <= rangeEnd);
+    });
+
+    const est = (c, e) => String(c.estado || '').trim().toLowerCase() === e;
+    const cuadradas_s  = inRange.filter(c => est(c, 'cuadrado')).length;
+    const rechazadas_s = inRange.filter(c => est(c, 'rechazado')).length;
+    const pendientes_s = inRange.filter(c => est(c, 'pendiente')).length;
+    const validadas_s  = inRange.filter(c => est(c, 'validado')).length;
+    const total        = inRange.length;
+
+    const valorCuadrado = inRange
+      .filter(c => est(c, 'cuadrado'))
+      .reduce((sum, c) => sum + Number(c.valor || 0), 0);
+
+    return { cuadradas_s, rechazadas_s, pendientes_s, validadas_s, total, valorCuadrado };
+  }, [consignaciones, dateRange, weekFilter, user.empresa]);
+
   const money = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
 
   const badgeClass = (e) => {
@@ -308,35 +368,87 @@ const CajeraPanel = ({ user }) => {
 
   return (
     <div className="page animate-in">
-      {/* Hero */}
-      <div className="hero-card" style={{ background: 'linear-gradient(135deg, #00e5a0 0%, #00b4d8 100%)', boxShadow: 'var(--shadow-glow-green)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="hero-label">👩‍💼 Panel Cajera</div>
-          {pendientes > 0 && (
-            <div className="pulse-badge" style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', boxShadow: '0 0 10px #fff', animation: 'pulse 1.5s infinite' }} />
-              EN LÍNEA
-            </div>
-          )}
-        </div>
-        <div className="hero-value">{pendientes}</div>
-        <div className="hero-sub">
-          {pendientes === 1 ? 'consignación pendiente' : 'consignaciones pendientes'} de validación
-          {validadasPorCuadrar > 0 && ` · ${validadasPorCuadrar} por cuadrar`}
-        </div>
-      </div>
-      {/* New card for Cuadrado count */}
-      <div className="hero-card" style={{ background: 'linear-gradient(135deg, #ff9f1c 0%, #ff4d6d 100%)', boxShadow: 'var(--shadow-glow-red)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="hero-label">🟢 Cuadrado</div>
-        </div>
-        <div className="hero-value">{cuadradas}</div>
-        <div className="hero-sub">
-          {cuadradas === 1 ? 'consignación cuadrada' : 'consignaciones cuadradas'}
-        </div>
+      {/* ── Selector de Semana ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+        <CalendarDays size={16} style={{ color: 'var(--neon-blue)', flexShrink: 0 }} />
+        <select
+          className="form-control"
+          style={{ flex: 1, fontSize: '0.8rem', padding: '0.5rem 0.75rem' }}
+          value={weekFilter}
+          onChange={e => handleWeekChange(e.target.value)}
+        >
+          <option value="">— Seleccionar semana —</option>
+          {WEEK_OPTIONS.map(w => (
+            <option key={w.value} value={w.value}>{w.label}</option>
+          ))}
+        </select>
+        {weekFilter && (
+          <button
+            className="btn btn-ghost btn-icon"
+            style={{ flexShrink: 0 }}
+            title="Limpiar semana"
+            onClick={() => {
+              setWeekFilter('');
+              // Restaurar al mes actual
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const days  = new Date(year, now.getMonth() + 1, 0).getDate();
+              setDateRange({ start: `${year}-${month}-01`, end: `${year}-${month}-${days}` });
+            }}
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
-
+      {/* ── Resumen semanal ── */}
+      {(weekFilter || (dateRange.start && dateRange.end)) && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: '0.6rem',
+          marginBottom: '1rem',
+        }}>
+          {/* Cuadradas */}
+          <div className="card" style={{ padding: '0.85rem', background: 'rgba(0,229,160,0.07)', border: '1px solid rgba(0,229,160,0.25)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--neon-green)', lineHeight: 1 }}>{weekSummary.cuadradas_s}</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', textTransform: 'uppercase', fontWeight: 700 }}>Cuadradas</div>
+          </div>
+          {/* Validadas */}
+          <div className="card" style={{ padding: '0.85rem', background: 'rgba(79,142,255,0.07)', border: '1px solid rgba(79,142,255,0.25)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--neon-blue)', lineHeight: 1 }}>{weekSummary.validadas_s}</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', textTransform: 'uppercase', fontWeight: 700 }}>Validadas</div>
+          </div>
+          {/* Rechazadas */}
+          <div className="card" style={{ padding: '0.85rem', background: 'rgba(255,77,109,0.07)', border: '1px solid rgba(255,77,109,0.25)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--neon-red)', lineHeight: 1 }}>{weekSummary.rechazadas_s}</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', textTransform: 'uppercase', fontWeight: 700 }}>Rechazadas</div>
+          </div>
+          {/* Pendientes */}
+          <div className="card" style={{ padding: '0.85rem', background: 'rgba(255,209,102,0.07)', border: '1px solid rgba(255,209,102,0.25)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--neon-yellow, #ffd166)', lineHeight: 1 }}>{weekSummary.pendientes_s}</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', textTransform: 'uppercase', fontWeight: 700 }}>Pendientes</div>
+          </div>
+          {/* Total */}
+          <div className="card" style={{ padding: '0.85rem', background: 'rgba(148,163,184,0.07)', border: '1px solid rgba(148,163,184,0.25)', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-1)', lineHeight: 1 }}>{weekSummary.total}</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '0.25rem', textTransform: 'uppercase', fontWeight: 700 }}>Total</div>
+          </div>
+        </div>
+      )}
+      {/* Monto cuadrado de la semana */}
+      {weekSummary.cuadradas_s > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.2)',
+          borderRadius: 'var(--radius-sm)', padding: '0.6rem 1rem', marginBottom: '1rem',
+          fontSize: '0.8rem',
+        }}>
+          <span style={{ color: 'var(--text-2)' }}>💰 Total cuadrado en el período</span>
+          <span style={{ fontWeight: 800, color: 'var(--neon-green)' }}>{money(weekSummary.valorCuadrado)}</span>
+        </div>
+      )}
 
       {/* Search + Filter toggle */}
       <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0 0.5rem' }}>
@@ -379,7 +491,7 @@ const CajeraPanel = ({ user }) => {
                 type="date" 
                 className="form-control" 
                 value={dateRange.start} 
-                onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))} 
+                onChange={e => { setWeekFilter(''); setDateRange(prev => ({ ...prev, start: e.target.value })); }} 
               />
             </div>
             <div className="form-group">
@@ -388,7 +500,7 @@ const CajeraPanel = ({ user }) => {
                 type="date" 
                 className="form-control" 
                 value={dateRange.end} 
-                onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} 
+                onChange={e => { setWeekFilter(''); setDateRange(prev => ({ ...prev, end: e.target.value })); }} 
               />
             </div>
             {/* Bancos */}
@@ -427,6 +539,7 @@ const CajeraPanel = ({ user }) => {
                   setDateRange({ start: '', end: '' });
                   setSearch('');
                   setEmpresaFilter('');
+                  setWeekFilter('');
                 }}
               >
                 Limpiar Filtros
