@@ -109,6 +109,9 @@ const CajeraPanel = ({ user }) => {
 
   // Bancos visibles según la empresa del usuario
   const visibleBancos = (() => {
+    // Si el cajero tiene lista de bancos restringidos, usar solo esos
+    if (user.bancos && user.bancos.length > 0) return user.bancos;
+
     if (!user || !user.empresa) return BANCOS_FULL.filter(b => !String(b).toLowerCase().includes('tat'));
     const company = String(user.empresa).toUpperCase();
     if (company === 'TAT') {
@@ -233,6 +236,8 @@ const CajeraPanel = ({ user }) => {
   };
   const filtered = consignaciones
   .filter(c => user.empresa ? c.empresa === user.empresa : true)
+  // Si el cajero tiene bancos restringidos, solo muestra esos bancos
+  .filter(c => (user.bancos && user.bancos.length > 0) ? user.bancos.includes(c.banco) : true)
   .filter(c => {
     const okBanco = bancoFilter ? c.banco === bancoFilter : true;
     const est = String(c.estado || '').trim().toLowerCase();
@@ -266,7 +271,9 @@ const CajeraPanel = ({ user }) => {
     return cDate <= eDate;
   }
 
-  const companyConsignaciones = consignaciones.filter(c => user.empresa ? c.empresa === user.empresa : true);
+  const companyConsignaciones = consignaciones
+    .filter(c => user.empresa ? c.empresa === user.empresa : true)
+    .filter(c => (user.bancos && user.bancos.length > 0) ? user.bancos.includes(c.banco) : true);
   const pendientes = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'pendiente').length;
   const validadasPorCuadrar = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'validado').length;
   const cuadradas = companyConsignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'cuadrado').length;

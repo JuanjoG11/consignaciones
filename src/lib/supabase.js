@@ -157,6 +157,7 @@ export const mockAuth = {
       { id: 'cajera-nat-zenu', email: 'nataly.zenu@consigcontrol.com', role: 'cajera', full_name: 'Nataly (Zenu)', pass: 'Zenu*2026N', empresa: 'ZENU' },
       { id: 'cajera-cris-alpina', email: 'cristina.alpina@consigcontrol.com', role: 'cajera', full_name: 'Cristina (Alpina)', pass: 'Alpina*2026C', empresa: 'ALPINA' },
       { id: 'cajera-daniel', email: 'daniel.tat@consigcontrol.com', role: 'cajera', full_name: 'Daniel (TAT)', pass: 'Tat*2026D', empresa: 'TAT' },
+      { id: 'cajera-cristian-cenas', email: 'cristian.cenas@consigcontrol.com', role: 'cajera', full_name: 'Cristian (Cenas)', pass: 'Zenu*2026Cr', empresa: 'ZENU', bancos: ['Cenas'] },
       { id: 'cartera-diana-alpina', email: 'diana.alpina@consigcontrol.com', role: 'cartera', full_name: 'Diana Garcia (Cartera TYM)', pass: 'Alpina*2026Di', empresa: 'ALPINA' },
       { id: 'cartera-diana-tym',    email: 'diana.tym@consigcontrol.com',    role: 'cartera', full_name: 'Diana Garcia (Cartera TYM)', pass: 'Alpina*2026Di', empresa: 'ALPINA' },
       { id: 'cartera-diana-tat',   email: 'diana.tat@consigcontrol.com',    role: 'cartera', full_name: 'Diana Garcia (TAT)',    pass: 'Tat*2026Di',    empresa: 'TAT'   },
