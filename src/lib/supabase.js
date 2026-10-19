@@ -252,6 +252,11 @@ export const mockDB = {
   // OBTENER CONSIGNACIONES (REAL)
   // dateFrom / dateTo (strings 'YYYY-MM-DD') filtran en servidor para evitar timeouts.
   // Si no se pasan, trae el mes actual por defecto.
+  // IMPORTANTE: para los registros en estado "Cuadrado" usamos fecha_cuadrado como su
+  // fecha efectiva. Por eso, además de filtrar por created_at, hacemos una segunda
+  // query que traiga los cuadrados cuya fecha_cuadrado caiga en el rango, incluso si
+  // su created_at fue de un mes anterior. Sin esto, los cuadrados de un período
+  // (p.ej. Zenú) que se crearon en un mes distinto al que se cuadraron NO aparecerían.
   getConsignaciones: async ({ dateFrom, dateTo } = {}) => {
     // Circuit breaker: si la BD está marcada como caída, no hacer la query
     if (!mockDB._checkDbUp()) {
@@ -270,40 +275,68 @@ export const mockDB = {
     }
 
     const PAGE_SIZE = 1000;
-    let allData = [];
-    let from = 0;
-    let keepFetching = true;
+    const SELECT_COLS = 'id,banco,valor,numero_comprobante,file_url,auxiliar_id,auxiliar_name,empresa,estado,motivo_rechazo,cajera_name,nombre_cliente,created_at,fecha_cuadrado';
 
-    while (keepFetching) {
-      let query = supabase
-        .from('consignaciones')
-        .select('id,banco,valor,numero_comprobante,file_url,auxiliar_id,auxiliar_name,empresa,estado,motivo_rechazo,cajera_name,nombre_cliente,created_at,fecha_cuadrado')
-        .order('created_at', { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
-
-      // Filtro de fechas en servidor (.gte y .lte encadenados es la sintaxis correcta de PostgREST)
-      if (dateFrom) query = query.gte('created_at', `${dateFrom}T00:00:00.000Z`);
-      if (dateTo)   query = query.lte('created_at', `${dateTo}T23:59:59.999Z`);
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Error Supabase:", JSON.stringify(error));
-        // Si es timeout (57014) o upstream timeout, activar circuit breaker
-        if (error.code === '57014' || error.message?.includes('timeout')) {
-          mockDB._markDbDown();
+    // Helper: trae todas las filas paginadas de una query ya configurada
+    // (sin filtros de fecha aplicados todavía, se los pasa el llamador)
+    const fetchAllPages = async (applyFilters) => {
+      let acc = [];
+      let from = 0;
+      let keepGoing = true;
+      while (keepGoing) {
+        let q = supabase.from('consignaciones').select(SELECT_COLS).order('created_at', { ascending: false }).range(from, from + PAGE_SIZE - 1);
+        q = applyFilters(q);
+        const { data, error } = await q;
+        if (error) {
+          console.error("Error Supabase:", JSON.stringify(error));
+          if (error.code === '57014' || error.message?.includes('timeout')) {
+            mockDB._markDbDown();
+          }
+          return { data: acc, error: true };
         }
-        return allData;
+        acc = acc.concat(data);
+        if (data.length < PAGE_SIZE) keepGoing = false;
+        else from += PAGE_SIZE;
       }
+      return { data: acc, error: false };
+    };
 
-      allData = allData.concat(data);
+    // Query 1: registros creados (created_at) en el rango.
+    // Ampliamos 1 día en cada extremo para compensar UTC vs. Colombia (UTC-5):
+    // un registro creado a las 8pm Colombia = día siguiente en UTC.
+    const dateFromPadded = dateFrom ? (() => { const d = new Date(`${dateFrom}T00:00:00.000Z`); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().split('T')[0]; })() : dateFrom;
+    const dateToPadded   = dateTo   ? (() => { const d = new Date(`${dateTo}T00:00:00.000Z`);   d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().split('T')[0]; })() : dateTo;
 
-      if (data.length < PAGE_SIZE) {
-        keepFetching = false;
-      } else {
-        from += PAGE_SIZE;
+    const res1 = await fetchAllPages((q) => {
+      if (dateFromPadded) q = q.gte('created_at', `${dateFromPadded}T00:00:00.000Z`);
+      if (dateToPadded)   q = q.lte('created_at', `${dateToPadded}T23:59:59.999Z`);
+      return q;
+    });
+    let allData = res1.data;
+
+    // Query 2 (solo si hay rango completo): cuadrados por fecha_cuadrado,
+    // que pudieron haberse creado en otro mes. También usamos el rango extendido.
+    if (dateFrom && dateTo && !res1.error) {
+      const res2 = await fetchAllPages((q) => {
+        return q
+          .eq('estado', 'Cuadrado')
+          .gte('fecha_cuadrado', `${dateFromPadded}T00:00:00.000Z`)
+          .lte('fecha_cuadrado', `${dateToPadded}T23:59:59.999Z`);
+      });
+      if (!res2.error && res2.data.length > 0) {
+        // Deduplicar por id (un registro puede estar en ambas queries)
+        const seen = new Set(allData.map(r => r.id));
+        for (const row of res2.data) {
+          if (!seen.has(row.id)) {
+            allData.push(row);
+            seen.add(row.id);
+          }
+        }
       }
     }
+
+    // Re-ordenar por created_at descendente (la query 2 puede haber insertado fuera de orden)
+    allData.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 
     // Mapeamos a fecha priorizando fecha_cuadrado si está en estado Cuadrado
     return allData.map(c => ({

@@ -122,6 +122,7 @@ const AdminPanel = ({ user }) => {
       // 1. Preparar datos para Excel (solo los filtrados o todos según corresponda)
       const data = listToExport.map(c => ({
         Fecha: format(new Date(c.fecha), "yyyy-MM-dd HH:mm"),
+        Empresa: c.empresa || 'GENERAL',
         Auxiliar: c.auxiliar_name,
         Banco: c.banco,
         Valor: c.valor,
@@ -196,10 +197,15 @@ const AdminPanel = ({ user }) => {
         valorStr.includes(s) ||
         (!isNaN(sNum) && c.valor != null && Math.abs(c.valor - sNum) < 0.01);
     }
-    
-    const dateStr = c.fecha ? c.fecha.substring(0, 10) : '';
-    const okStart = dateRange.start ? dateStr >= dateRange.start : true;
-    const okEnd   = dateRange.end   ? dateStr <= dateRange.end : true;
+
+    // Convertir created_at a hora Colombia (UTC-5) para el filtro de fecha del admin.
+    // Usamos created_at (no fecha_cuadrado) porque el admin quiere ver "qué se consignó
+    // ese día", sin importar cuándo se cuadró después.
+    const fechaLocal = c.created_at
+      ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
+      : '';
+    const okStart = dateRange.start ? fechaLocal >= dateRange.start : true;
+    const okEnd   = dateRange.end   ? fechaLocal <= dateRange.end : true;
     const okBanco = bancoFilter ? (c.banco && c.banco.trim().toLowerCase() === bancoFilter.trim().toLowerCase()) : true;
     const okEmpresa = empresaFilter ? c.empresa === empresaFilter : true;
     const okCajera = cajeraFilter ? c.cajera_name === cajeraFilter : true;
