@@ -44,6 +44,7 @@ const AdminPanel = ({ user }) => {
   const [zipByBank, setZipByBank] = useState(false); // Export option
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [showFilters, setShowFilters] = useState(false);
+  const [expandedEmpresa, setExpandedEmpresa] = useState(null); // para el breakdown por empresa
 
   // Helper to set date range para un mes dado (índice 0-11)
   const setMonthRange = (monthIdx) => {
@@ -256,6 +257,34 @@ const AdminPanel = ({ user }) => {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 7);
 
+  // ── Resumen por empresa + desglose por banco ────────────────────────────────
+  // Usa los datos del rango activo (consignaciones), solo aprobados
+  const EMPRESAS_ORDEN = ['ALPINA', 'ZENU', 'GENERAL'];
+  const EMPRESA_COLORS = {
+    ALPINA: { bg: 'rgba(79,142,255,0.12)', border: 'rgba(79,142,255,0.35)', color: '#4f8eff', label: '🔵 Alpina' },
+    ZENU:   { bg: 'rgba(255,159,28,0.12)', border: 'rgba(255,159,28,0.35)',  color: '#ff9f1c', label: '🟠 Zenú'  },
+    GENERAL:{ bg: 'rgba(0,229,160,0.10)',  border: 'rgba(0,229,160,0.25)',   color: '#00e5a0', label: '🟢 General' },
+  };
+
+  const empresaResumen = consignaciones
+    .filter(c => isAprobado(c.estado))
+    .reduce((acc, c) => {
+      const emp = (c.empresa || 'GENERAL').toUpperCase();
+      if (!acc[emp]) acc[emp] = { total: 0, count: 0, bancos: {} };
+      acc[emp].total += Number(c.valor) || 0;
+      acc[emp].count += 1;
+      const banco = c.banco || 'Sin banco';
+      if (!acc[emp].bancos[banco]) acc[emp].bancos[banco] = { total: 0, count: 0 };
+      acc[emp].bancos[banco].total += Number(c.valor) || 0;
+      acc[emp].bancos[banco].count += 1;
+      return acc;
+    }, {});
+
+  // Ordenar bancos por total desc
+  const getBancosOrdenados = (emp) =>
+    Object.entries(empresaResumen[emp]?.bancos || {})
+      .sort((a, b) => b[1].total - a[1].total);
+
   const STATS = [
     {
       label: 'Total Validado',
@@ -426,6 +455,65 @@ const AdminPanel = ({ user }) => {
         <div className="hero-value">{money(heroTotal)}</div>
         <div className="hero-sub">{heroLabel} · {consignaciones.length} registros en sistema</div>
       </div>
+
+      {/* ── Resumen por Empresa ─────────────────────────────────────────── */}
+      {user.empresa !== 'TAT' && Object.keys(empresaResumen).length > 0 && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-3)', marginBottom: '0.75rem' }}>
+            Ingresos por Empresa (validados)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+            {[...EMPRESAS_ORDEN, ...Object.keys(empresaResumen).filter(e => !EMPRESAS_ORDEN.includes(e))].filter(e => empresaResumen[e]).map(emp => {
+              const cfg   = EMPRESA_COLORS[emp] || { bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)', color: 'var(--text-2)', label: emp };
+              const data  = empresaResumen[emp];
+              const open  = expandedEmpresa === emp;
+              const bancos = getBancosOrdenados(emp);
+              return (
+                <div
+                  key={emp}
+                  onClick={() => setExpandedEmpresa(open ? null : emp)}
+                  style={{
+                    background: cfg.bg,
+                    border: `1px solid ${open ? cfg.color : cfg.border}`,
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem 1.25rem',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    boxShadow: open ? `0 0 12px ${cfg.color}40` : 'none',
+                  }}
+                >
+                  {/* Cabecera empresa */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: open ? '0.75rem' : 0 }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: cfg.color }}>{cfg.label}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: '2px' }}>{data.count} consignaciones</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-1)' }}>{money(data.total)}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginTop: '2px' }}>{open ? '▲ ocultar' : '▼ ver bancos'}</div>
+                    </div>
+                  </div>
+
+                  {/* Desglose por banco */}
+                  {open && (
+                    <div style={{ borderTop: `1px solid ${cfg.border}`, paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {bancos.map(([banco, bData]) => (
+                        <div key={banco} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-1)' }}>{banco}</div>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-3)' }}>{bData.count} reg.</div>
+                          </div>
+                          <div style={{ fontWeight: 800, fontSize: '0.85rem', color: cfg.color }}>{money(bData.total)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
           {/* Sección de datos por mes */}
           <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
