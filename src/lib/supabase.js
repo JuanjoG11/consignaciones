@@ -54,6 +54,7 @@ export const AUXILIARES = [
   { cedula: '1002718622', nombre: 'JUAN CAMILO COCOMA OROZCO', empresa: 'ALPINA' },
   { cedula: '1064310724', nombre: 'JUAN JOSE CONTRERAS', empresa: 'ALPINA' },
   { cedula: '1064723579', nombre: 'CARLOS ALBERTO JIMENEZ JACOME', empresa: 'ALPINA' },
+  { cedula: '1088361047', nombre: 'MARLON MOISES MURILLO RAMIREZ', empresa: 'ALPINA' },
   // Auxiliares TAT — solo Julian y Yudi permanecen en TAT; el resto pasó a ALPINA
   { cedula: '10275966',   nombre: 'LUIS FERNANDO LOPEZ MARIN', empresa: 'ALPINA' },
   { cedula: '75071571',   nombre: 'LUIS ALFONSO RIOS GONZALEZ', empresa: 'ALPINA' },
