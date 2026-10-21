@@ -59,8 +59,8 @@ const AdminPanel = ({ user }) => {
   const fetchConsignaciones = async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await mockDB.getConsignaciones({ dateFrom: dateRange.start, dateTo: dateRange.end });
-    // Solo actualizar si llegaron datos; si Supabase falló, conservar lo que había
-    if (data && data.length > 0) {
+    // Actualizar siempre, incluso si viene vacío (puede ser un rango sin datos)
+    if (data !== null && data !== undefined) {
       if (user && user.role === 'admin') {
         if (user.empresa === 'TAT') {
           setConsignaciones(data.filter(d => d.empresa === 'TAT'));
@@ -96,7 +96,12 @@ const AdminPanel = ({ user }) => {
     return () => clearInterval(interval);
   }, [dateRange.start, dateRange.end]);
 
-  const isCuadrado = (c) => String(c.estado || '').trim().toLowerCase() === 'cuadrado';
+  // Los estados en DB pueden venir como 'Cuadrado', 'Validado' o 'cuadrado' — todos son "aprobado"
+  const isAprobado = (e) => {
+    const s = String(e || '').trim().toLowerCase();
+    return s === 'cuadrado' || s === 'validado';
+  };
+  const isCuadrado = (c) => isAprobado(c.estado);
 
   const exportToExcel = async (onlyFiltered = false, includeAll = false) => {
     let listToExport;
@@ -178,7 +183,7 @@ const AdminPanel = ({ user }) => {
     }
   };
 
-  const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : e === 'Validado' ? 'badge-valid' : 'badge-rejected';
+  const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : isAprobado(e) ? 'badge-valid' : 'badge-rejected';
 
 
   const filtered = consignaciones.filter(c => {
@@ -215,11 +220,14 @@ const AdminPanel = ({ user }) => {
 
 
 
-  const totalValidado = filtered.filter(c => c.estado === 'Validado').reduce((a, b) => a + b.valor, 0);
+  const totalValidado = filtered.filter(c => isAprobado(c.estado)).reduce((a, b) => a + b.valor, 0);
   const totalFiltrado = filtered.reduce((a, b) => a + b.valor, 0);
+  const hasActiveFilters = search.trim().length > 0 || bancoFilter || cajeraFilter || empresaFilter;
   const isSearching = search.trim().length > 0;
-  const heroTotal = isSearching ? totalFiltrado : totalValidado;
-  const heroLabel = isSearching ? 'total encontrado' : 'total validado';
+  const heroTotal = hasActiveFilters ? totalFiltrado : totalValidado;
+  const heroLabel = hasActiveFilters
+    ? (isSearching ? 'total encontrado' : 'total en filtro activo')
+    : 'total validado';
   const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
   const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
   const filteredCuadradoCount = filtered.filter(isCuadrado).length;
@@ -227,7 +235,7 @@ const AdminPanel = ({ user }) => {
   const totalUploadedCount = consignaciones.filter(c => c.file_url).length;
   const filteredUploadedCount = filtered.filter(c => c.file_url).length;
 
-  const byBank = filtered.filter(c => c.estado === 'Validado').reduce((acc, c) => {
+  const byBank = filtered.filter(c => isAprobado(c.estado)).reduce((acc, c) => {
     acc[c.banco] = (acc[c.banco] || 0) + c.valor;
     return acc;
   }, {});
@@ -235,7 +243,7 @@ const AdminPanel = ({ user }) => {
 
   // Cuadre diario (Totales validados agrupados por día)
   const dailyTotals = consignaciones
-    .filter(c => c.estado === 'Validado')
+    .filter(c => isAprobado(c.estado))
     .reduce((acc, c) => {
       const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
       acc[dateStr] = (acc[dateStr] || 0) + c.valor;
@@ -631,7 +639,7 @@ const AdminPanel = ({ user }) => {
                   <div className="consign-info" style={{ flex: 1 }}>
                     <div className="consign-name">{c.auxiliar_name}</div>
                     <div className="consign-meta">{c.banco} · #{c.numero_comprobante} · {format(new Date(c.fecha), "d MMM, h:mm a", { locale: es })}</div>
-                    {c.estado === 'Validado' && c.cajera_name && (
+                    {isAprobado(c.estado) && c.cajera_name && (
                       <div style={{ fontSize: '0.65rem', color: 'var(--neon-green)', fontWeight: 600, marginTop: '2px' }}>
                         Validado por: {c.cajera_name}
                       </div>

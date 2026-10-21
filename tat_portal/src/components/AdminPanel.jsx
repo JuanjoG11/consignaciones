@@ -71,8 +71,9 @@ const AdminPanel = ({ user }) => {
 		return okSearch && okStart && okEnd && okBanco && okEmpresa && okCajera;
 	});
 
-	// Mostrar total de 'Validado' sobre todas las consignaciones TAT (no solo el filtro de búsqueda)
-	const totalValidado = consignaciones.filter(c => String(c.estado || '').trim().toLowerCase() === 'validado').reduce((a,b)=>a + (Number(b.valor) || 0),0);
+	// Mostrar total de 'Cuadrado'/'Validado' sobre todas las consignaciones TAT (no solo el filtro de búsqueda)
+	const isAprobado = (e) => { const s = String(e || '').trim().toLowerCase(); return s === 'cuadrado' || s === 'validado'; };
+	const totalValidado = consignaciones.filter(c => isAprobado(c.estado)).reduce((a,b)=>a + (Number(b.valor) || 0),0);
 	const heroTotal = totalValidado;
 
 	return (
