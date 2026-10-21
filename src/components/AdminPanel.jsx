@@ -133,6 +133,7 @@ const AdminPanel = ({ user }) => {
         Valor: c.valor,
         Comprobante: c.numero_comprobante,
         Estado: c.estado,
+        Cajera: c.cajera_name || '',
         Motivo_Rechazo: c.motivo_rechazo || '',
         Carpeta_Local: format(new Date(c.fecha), "yyyy-MM-dd") // Referencia a la carpeta en el ZIP
       }));

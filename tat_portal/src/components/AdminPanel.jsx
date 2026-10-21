@@ -53,7 +53,7 @@ const AdminPanel = ({ user }) => {
 			// Root folder explicit para identificar como TAT
 			const rootFolder = zip.folder('TAT_comprobantes');
 			const photosFolder = rootFolder.folder('comprobantes_por_fecha');
-			const data = listToExport.map(c => ({ Fecha: format(new Date(c.fecha), 'yyyy-MM-dd HH:mm'), Auxiliar: c.auxiliar_name, Banco: c.banco, Valor: c.valor, Comprobante: c.numero_comprobante, Estado: c.estado, Motivo_Rechazo: c.motivo_rechazo || '', Carpeta_Local: format(new Date(c.fecha), 'yyyy-MM-dd') }));
+			const data = listToExport.map(c => ({ Fecha: format(new Date(c.fecha), 'yyyy-MM-dd HH:mm'), Auxiliar: c.auxiliar_name, Banco: c.banco, Valor: c.valor, Comprobante: c.numero_comprobante, Estado: c.estado, Cajera: c.cajera_name || '', Motivo_Rechazo: c.motivo_rechazo || '', Carpeta_Local: format(new Date(c.fecha), 'yyyy-MM-dd') }));
 			const ws = XLSX.utils.json_to_sheet(data);
 			const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Consignaciones');
 			const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }); zip.file(`Reporte_Consignaciones.xlsx`, excelBuffer);
@@ -143,6 +143,59 @@ const AdminPanel = ({ user }) => {
 						)}
 					</div>
 				</div>
+			</div>
+
+			{/* Lista de consignaciones */}
+			<div className="card" style={{ marginTop: '1rem' }}>
+				{loading ? (
+					<div style={{ display:'flex', justifyContent:'center', padding:'2rem' }}><div className="spinner" /></div>
+				) : filtered.length === 0 ? (
+					<div style={{ textAlign:'center', padding:'2rem', color:'var(--text-2)' }}>
+						<AlertCircle size={32} style={{ marginBottom:'0.75rem', opacity:0.4 }} />
+						<p>No se encontraron registros con estos filtros</p>
+					</div>
+				) : (
+					filtered.slice(0, 50).map(c => (
+						<div key={c.id} className="consign-item" style={{ flexDirection:'column', alignItems:'stretch', gap:'0.75rem' }}>
+							<div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+								<div className="consign-icon" style={{ flexShrink:0 }}>
+									<Building2 size={18} />
+								</div>
+								<div className="consign-info" style={{ flex:1 }}>
+									<div className="consign-name">{c.auxiliar_name}</div>
+									<div className="consign-meta">{c.banco} · #{c.numero_comprobante}</div>
+									{isAprobado(c.estado) && c.cajera_name && (
+										<div style={{ fontSize:'0.65rem', color:'var(--neon-green)', fontWeight:600, marginTop:'2px' }}>
+											Cuadrado por: {c.cajera_name}
+										</div>
+									)}
+									{c.estado === 'Rechazado' && c.cajera_name && (
+										<div style={{ fontSize:'0.65rem', color:'var(--neon-red)', fontWeight:600, marginTop:'2px' }}>
+											Rechazado por: {c.cajera_name}
+										</div>
+									)}
+								</div>
+								<div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'0.3rem', flexShrink:0 }}>
+									<span className="consign-amount">{new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',minimumFractionDigits:0}).format(c.valor)}</span>
+									<span className={`badge ${c.estado==='Pendiente'?'badge-pending':isAprobado(c.estado)?'badge-valid':'badge-rejected'}`}>{c.estado}</span>
+									<button onClick={()=>handleDelete(c.id)} className="btn btn-ghost" title="Eliminar" style={{ padding:'2px', height:'auto', minWidth:'auto', border:'none', color:'var(--neon-red)', background:'transparent', cursor:'pointer' }}>
+										<Trash2 size={13} />
+									</button>
+								</div>
+							</div>
+							{c.file_url && !c.file_url.includes('pdf') && (
+								<a href={c.file_url} target="_blank" rel="noopener noreferrer" style={{ display:'block' }}>
+									<img src={c.file_url} alt="Comprobante" style={{ width:'100%', maxHeight:'220px', objectFit:'contain', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', background:'#000', cursor:'zoom-in' }} />
+								</a>
+							)}
+							{c.file_url && c.file_url.includes('pdf') && (
+								<a href={c.file_url} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:'0.4rem', padding:'0.4rem 0.75rem', borderRadius:'var(--radius-sm)', background:'rgba(79,142,255,0.1)', border:'1px solid rgba(79,142,255,0.25)', color:'var(--neon-blue)', fontSize:'0.75rem', fontWeight:700, textDecoration:'none' }}>
+									📄 Ver PDF del comprobante
+								</a>
+							)}
+						</div>
+					))
+				)}
 			</div>
 		</div>
 	);

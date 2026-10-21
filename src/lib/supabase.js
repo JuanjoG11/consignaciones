@@ -456,6 +456,7 @@ export const mockDB = {
       if (cajera_name) updateData.cajera_name = cajera_name;
     } else if (estado === 'Cuadrado') {
       updateData.fecha_cuadrado = new Date().toISOString();
+      if (cajera_name) updateData.cajera_name = cajera_name;
     }
 
     const { error } = await supabase
