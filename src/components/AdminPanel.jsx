@@ -38,6 +38,10 @@ const AdminPanel = ({ user }) => {
     const daysInMonth = new Date(year, now.getMonth() + 1, 0).getDate();
     return { start: `${year}-${month}-01`, end: `${year}-${month}-${daysInMonth}` };
   });
+  // Borrador del rango de fechas: el usuario edita aquí y solo se aplica al
+  // hacer clic en "Aplicar Filtro". Evita refetch intermedios mientras cambia
+  // la fecha inicial y la final por separado.
+  const [dateRangeDraft, setDateRangeDraft] = useState(dateRange);
   const [empresaFilter, setEmpresaFilter] = useState('');
   const [cajeraFilter, setCajeraFilter] = useState('');
   const [bancoFilter, setBancoFilter] = useState(''); // New bank filter
@@ -52,7 +56,9 @@ const AdminPanel = ({ user }) => {
     const start = `${year}-${String(monthIdx + 1).padStart(2, '0')}-01`;
     const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
     const end = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${daysInMonth}`;
-    setDateRange({ start, end });
+    const range = { start, end };
+    setDateRange(range);
+    setDateRangeDraft(range);
   };
   // Nota: no hay useEffect para setMonthRange al montar — el useState ya inicializa
   // el rango al mes actual, así se evita un segundo fetch innecesario al arrancar.
@@ -381,8 +387,9 @@ const AdminPanel = ({ user }) => {
               <input 
                 type="date" 
                 className="form-control" 
-                value={dateRange.start} 
-                onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))} 
+                value={dateRangeDraft.start} 
+                onChange={e => setDateRangeDraft(prev => ({ ...prev, start: e.target.value }))} 
+                style={dateRangeDraft.start !== dateRange.start ? { borderColor: 'var(--neon-orange)' } : {}}
               />
             </div>
             <div className="form-group">
@@ -390,8 +397,9 @@ const AdminPanel = ({ user }) => {
               <input 
                 type="date" 
                 className="form-control" 
-                value={dateRange.end} 
-                onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))} 
+                value={dateRangeDraft.end} 
+                onChange={e => setDateRangeDraft(prev => ({ ...prev, end: e.target.value }))} 
+                style={dateRangeDraft.end !== dateRange.end ? { borderColor: 'var(--neon-orange)' } : {}}
               />
             </div>
             <div className="form-group">
@@ -427,10 +435,19 @@ const AdminPanel = ({ user }) => {
             </div>
                         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem' }}>
               <button
+                className="btn btn-success"
+                onClick={() => setDateRange(dateRangeDraft)}
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.8rem', whiteSpace: 'nowrap', ...(dateRangeDraft.start === dateRange.start && dateRangeDraft.end === dateRange.end ? { opacity: 0.4 } : {}) }}
+              >
+                Aplicar Filtro
+              </button>
+              <button
                 className="btn btn-ghost w-full"
                 onClick={() => {
                   setSearch('');
-                  setDateRange({ start: '', end: '' });
+                  const reset = { start: '', end: '' };
+                  setDateRange(reset);
+                  setDateRangeDraft(reset);
                   setEmpresaFilter('');
                   setCajeraFilter('');
                   setBancoFilter('');
