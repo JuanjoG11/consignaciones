@@ -113,14 +113,14 @@ const AdminPanel = ({ user }) => {
   const exportToExcel = async (onlyFiltered = false, includeAll = false) => {
     let listToExport;
     if (includeAll) {
-      // Include all consignaciones that have an uploaded file, regardless of estado
-      listToExport = onlyFiltered ? filtered.filter(c => c.file_url) : consignaciones.filter(c => c.file_url);
+      // Include all dateFiltered consignaciones that have an uploaded file, regardless of estado
+      listToExport = onlyFiltered ? filtered.filter(c => c.file_url) : dateFiltered.filter(c => c.file_url);
     } else if (onlyFiltered) {
       // Include only Cuadrado consignaciones that match active UI filters
       listToExport = filtered.filter(isCuadrado);
     } else {
-      // Include all Cuadrado consignaciones
-      listToExport = consignaciones.filter(isCuadrado);
+      // Include all Cuadrado consignaciones within the date range
+      listToExport = dateFiltered.filter(isCuadrado);
     }
     if (listToExport.length === 0) return;
 
@@ -194,6 +194,26 @@ const AdminPanel = ({ user }) => {
   const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : isAprobado(e) ? 'badge-valid' : 'badge-rejected';
 
 
+  // Fecha de consignación en zona horaria de Colombia (UTC-5).
+  // El admin quiere ver "qué se consignó ese día" — usamos created_at (no fecha_cuadrado)
+  // para filtrar y agrupar por el día REAL en que se hizo la consignación.
+  const getFechaConsignacion = (c) =>
+    c.created_at
+      ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
+      : '';
+
+  // Solo filtro de fecha por created_at (sin search/banco/cajera) — para los
+  // totales por empresa y el cuadre diario, que deben reflejar el rango de
+  // fechas seleccionado pero no los demás filtros de la barra de búsqueda.
+  // Esto excluye los registros que el servidor trae por fecha_cuadrado (Query 2)
+  // pero cuyo created_at cae fuera del rango seleccionado.
+  const dateFiltered = consignaciones.filter(c => {
+    const f = getFechaConsignacion(c);
+    const okStart = dateRange.start ? f >= dateRange.start : true;
+    const okEnd = dateRange.end ? f <= dateRange.end : true;
+    return okStart && okEnd;
+  });
+
   const filtered = consignaciones.filter(c => {
     const s = search.trim();
     let okSearch = true;
@@ -214,9 +234,7 @@ const AdminPanel = ({ user }) => {
     // Convertir created_at a hora Colombia (UTC-5) para el filtro de fecha del admin.
     // Usamos created_at (no fecha_cuadrado) porque el admin quiere ver "qué se consignó
     // ese día", sin importar cuándo se cuadró después.
-    const fechaLocal = c.created_at
-      ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
-      : '';
+    const fechaLocal = getFechaConsignacion(c);
     const okStart = dateRange.start ? fechaLocal >= dateRange.start : true;
     const okEnd   = dateRange.end   ? fechaLocal <= dateRange.end : true;
     const okBanco = bancoFilter ? (c.banco && c.banco.trim().toLowerCase() === bancoFilter.trim().toLowerCase()) : true;
@@ -239,8 +257,8 @@ const AdminPanel = ({ user }) => {
   const pendientesCount = filtered.filter(c => c.estado === 'Pendiente').length;
   const rechazados = filtered.filter(c => c.estado === 'Rechazado').length;
   const filteredCuadradoCount = filtered.filter(isCuadrado).length;
-  const totalCuadradoCount = consignaciones.filter(isCuadrado).length;
-  const totalUploadedCount = consignaciones.filter(c => c.file_url).length;
+  const totalCuadradoCount = dateFiltered.filter(isCuadrado).length;
+  const totalUploadedCount = dateFiltered.filter(c => c.file_url).length;
   const filteredUploadedCount = filtered.filter(c => c.file_url).length;
 
   const byBank = filtered.filter(c => isAprobado(c.estado)).reduce((acc, c) => {
@@ -250,10 +268,12 @@ const AdminPanel = ({ user }) => {
   const topBank = Object.entries(byBank).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
 
   // Cuadre diario (Totales validados agrupados por día + desglose por empresa)
-  const dailyData = consignaciones
+  // Agrupa por la fecha de CONSIGNACIÓN (created_at en hora Colombia), no por
+  // fecha_cuadrado, para que cada día refleje lo que se consignó ese día.
+  const dailyData = dateFiltered
     .filter(c => isAprobado(c.estado))
     .reduce((acc, c) => {
-      const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
+      const dateStr = getFechaConsignacion(c);
       if (!acc[dateStr]) acc[dateStr] = { total: 0, empresas: {} };
       acc[dateStr].total += Number(c.valor) || 0;
       const emp = (c.empresa || 'GENERAL').toUpperCase();
@@ -266,7 +286,9 @@ const AdminPanel = ({ user }) => {
     .sort((a, b) => b.date.localeCompare(a.date));
 
   // ── Resumen por empresa + desglose por banco ────────────────────────────────
-  // Usa los datos del rango activo (consignaciones), solo aprobados
+  // Usa los datos del rango activo filtrados por fecha de consignación
+  // (dateFiltered), solo aprobados. Esto excluye registros traídos por
+  // fecha_cuadrado pero creados fuera del rango seleccionado.
   const EMPRESAS_ORDEN = ['ALPINA', 'ZENU', 'GENERAL'];
   const EMPRESA_COLORS = {
     ALPINA: { bg: 'rgba(79,142,255,0.12)', border: 'rgba(79,142,255,0.35)', color: '#4f8eff', label: '🔵 Alpina' },
@@ -274,7 +296,7 @@ const AdminPanel = ({ user }) => {
     GENERAL:{ bg: 'rgba(0,229,160,0.10)',  border: 'rgba(0,229,160,0.25)',   color: '#00e5a0', label: '🟢 General' },
   };
 
-  const empresaResumen = consignaciones
+  const empresaResumen = dateFiltered
     .filter(c => isAprobado(c.estado))
     .reduce((acc, c) => {
       const emp = (c.empresa || 'GENERAL').toUpperCase();
@@ -317,7 +339,7 @@ const AdminPanel = ({ user }) => {
     },
     {
       label: 'Total Registros',
-      value: consignaciones.length,
+      value: dateFiltered.length,
       icon: <ListChecks size={18} />,
       color: 'var(--neon-blue)',
       bg: 'rgba(79,142,255,0.12)',
@@ -472,7 +494,7 @@ const AdminPanel = ({ user }) => {
       <div className="hero-card" style={{ background: 'linear-gradient(135deg, #9b5cff 0%, #4f8eff 100%)', boxShadow: 'var(--shadow-glow-purple)' }}>
         <div className="hero-label">🛡️ Panel Administrativo</div>
         <div className="hero-value">{money(heroTotal)}</div>
-        <div className="hero-sub">{heroLabel} · {consignaciones.length} registros en sistema</div>
+        <div className="hero-sub">{heroLabel} · {dateFiltered.length} registros en sistema</div>
       </div>
 
       {/* ── Resumen por Empresa ─────────────────────────────────────────── */}
@@ -546,8 +568,10 @@ const AdminPanel = ({ user }) => {
               <h3 style={{ marginBottom: '0.5rem' }}>
                 Datos de {new Date().toLocaleDateString('es-CO', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
               </h3>
-              <p>Total consignaciones: {consignaciones.filter(c => {
-                const d = new Date(c.fecha);
+              <p>Total consignaciones: {dateFiltered.filter(c => {
+                const f = getFechaConsignacion(c);
+                if (!f) return false;
+                const d = new Date(f + 'T12:00:00');
                 return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
               }).length}</p>
             </div>
@@ -556,8 +580,10 @@ const AdminPanel = ({ user }) => {
               <h3 style={{ marginBottom: '0.5rem' }}>
                 Histórico de {new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('es-CO', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
               </h3>
-              <p>Total consignaciones: {consignaciones.filter(c => {
-                const d = new Date(c.fecha);
+              <p>Total consignaciones: {dateFiltered.filter(c => {
+                const f = getFechaConsignacion(c);
+                if (!f) return false;
+                const d = new Date(f + 'T12:00:00');
                 const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
                 return d.getMonth() === prev.getMonth() && d.getFullYear() === prev.getFullYear();
               }).length}</p>
@@ -594,7 +620,7 @@ const AdminPanel = ({ user }) => {
             </div>
           )}
 
-          {filtered.length < consignaciones.length ? (
+          {filtered.length < dateFiltered.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
               <button
                 className="btn btn-success w-full animate-in"
