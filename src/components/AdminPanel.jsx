@@ -243,19 +243,21 @@ const AdminPanel = ({ user }) => {
   }, {});
   const topBank = Object.entries(byBank).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
 
-  // Cuadre diario (Totales validados agrupados por día)
-  const dailyTotals = consignaciones
+  // Cuadre diario (Totales validados agrupados por día + desglose por empresa)
+  const dailyData = consignaciones
     .filter(c => isAprobado(c.estado))
     .reduce((acc, c) => {
       const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
-      acc[dateStr] = (acc[dateStr] || 0) + c.valor;
+      if (!acc[dateStr]) acc[dateStr] = { total: 0, empresas: {} };
+      acc[dateStr].total += Number(c.valor) || 0;
+      const emp = (c.empresa || 'GENERAL').toUpperCase();
+      acc[dateStr].empresas[emp] = (acc[dateStr].empresas[emp] || 0) + (Number(c.valor) || 0);
       return acc;
     }, {});
 
-  const dailyBreakdown = Object.entries(dailyTotals)
-    .map(([date, total]) => ({ date, total }))
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 7);
+  const dailyBreakdown = Object.entries(dailyData)
+    .map(([date, d]) => ({ date, total: d.total, empresas: d.empresas }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // ── Resumen por empresa + desglose por banco ────────────────────────────────
   // Usa los datos del rango activo (consignaciones), solo aprobados
@@ -459,8 +461,13 @@ const AdminPanel = ({ user }) => {
       {/* ── Resumen por Empresa ─────────────────────────────────────────── */}
       {user.empresa !== 'TAT' && Object.keys(empresaResumen).length > 0 && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-3)', marginBottom: '0.75rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-3)', marginBottom: '0.25rem' }}>
             Ingresos por Empresa (validados)
+          </div>
+          <div style={{ fontSize: '0.66rem', color: 'var(--text-3)', marginBottom: '0.75rem', opacity: 0.7 }}>
+            {dateRange.start || dateRange.end
+              ? `Rango: ${dateRange.start || '…'} → ${dateRange.end || '…'}`
+              : 'Mes actual'}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
             {[...EMPRESAS_ORDEN, ...Object.keys(empresaResumen).filter(e => !EMPRESAS_ORDEN.includes(e))].filter(e => empresaResumen[e]).map(emp => {
@@ -649,22 +656,37 @@ const AdminPanel = ({ user }) => {
         <div className="card animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
             <Clock size={16} color="var(--neon-green)" />
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cuadre Diario (Validados)</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cuadre Diario (Validados · por empresa)</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '340px', overflowY: 'auto' }}>
             {dailyBreakdown.length === 0 ? (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-3)', textAlign: 'center', padding: '1rem' }}>No hay registros validados</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-3)', textAlign: 'center', padding: '1rem' }}>No hay registros validados en este rango</div>
             ) : (
-              dailyBreakdown.map(item => (
-                <div key={item.date} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-2)' }}>
-                    {format(new Date(item.date + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--neon-green)' }}>
-                    {money(item.total)}
-                  </span>
-                </div>
-              ))
+              dailyBreakdown.map(item => {
+                const empKeys = Object.keys(item.empresas).sort((a, b) => item.empresas[b] - item.empresas[a]);
+                return (
+                  <div key={item.date} style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-2)' }}>
+                        {format(new Date(item.date + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es })}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--neon-green)' }}>
+                        {money(item.total)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.3rem', paddingLeft: '0.2rem' }}>
+                      {empKeys.map(emp => {
+                        const cfg = EMPRESA_COLORS[emp] || { color: 'var(--text-3)', label: emp };
+                        return (
+                          <span key={emp} style={{ fontSize: '0.62rem', fontWeight: 700, color: cfg.color }}>
+                            {cfg.label}: {money(item.empresas[emp])}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
