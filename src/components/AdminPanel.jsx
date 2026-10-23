@@ -623,79 +623,64 @@ const AdminPanel = ({ user }) => {
             </div>
           )}
 
-          {filtered.length < dateFiltered.length ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
-              <button
-                className="btn btn-success w-full animate-in"
-                style={{ 
-                  padding: '1rem 1.25rem', 
-                  fontSize: '0.92rem', 
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-                  border: 'none', 
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
-                  color: '#00120d'
-                }}
-                onClick={() => exportToExcel(true)}
-                disabled={loading || filteredCuadradoCount === 0}
-              >
-                <Download size={18} />
-                Descargar Filtrado (ZIP · {filteredCuadradoCount} reg.)
-              </button>
+          {/* Botones de descarga — siempre visibles; "Filtrado" solo cuando hay filtros activos */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
+            {filtered.length < dateFiltered.length && (
+              <>
+                <button
+                  className="btn btn-success w-full animate-in"
+                  style={{ 
+                    padding: '1rem 1.25rem', 
+                    fontSize: '0.92rem', 
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                    border: 'none', 
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
+                    color: '#00120d'
+                  }}
+                  onClick={() => exportToExcel(true)}
+                  disabled={loading || filteredCuadradoCount === 0}
+                >
+                  <Download size={18} />
+                  Descargar Filtrado (ZIP · {filteredCuadradoCount} reg.)
+                </button>
 
-              <button
-                className="btn btn-ghost w-full"
-                style={{ 
-                  padding: '0.6rem 1.25rem', 
-                  fontSize: '0.8rem', 
-                  borderColor: 'rgba(255,255,255,0.08)', 
-                  color: 'var(--text-3)',
-                  background: 'rgba(255,255,255,0.02)'
-                }}
-                onClick={() => exportToExcel(true, true)}
-                disabled={loading || filteredUploadedCount === 0}
-              >
-                <Download size={14} />
-                Descargar Todo (ZIP · {filteredUploadedCount} reg.)
-              </button>
+                <button
+                  className="btn btn-ghost w-full"
+                  style={{ 
+                    padding: '0.6rem 1.25rem', 
+                    fontSize: '0.8rem', 
+                    borderColor: 'rgba(255,255,255,0.08)', 
+                    color: 'var(--text-3)',
+                    background: 'rgba(255,255,255,0.02)'
+                  }}
+                  onClick={() => exportToExcel(true, true)}
+                  disabled={loading || filteredUploadedCount === 0}
+                >
+                  <Download size={14} />
+                  Descargar Todo Filtrado (ZIP · {filteredUploadedCount} reg.)
+                </button>
+              </>
+            )}
 
-              <button
-                className="btn btn-ghost w-full"
-                style={{ 
-                  padding: '0.6rem 1.25rem', 
-                  fontSize: '0.8rem', 
-                  borderColor: 'rgba(255,255,255,0.08)', 
-                  color: 'var(--text-3)',
-                  background: 'rgba(255,255,255,0.02)'
-                }}
-                onClick={() => exportToExcel(false)}
-                disabled={loading || totalCuadradoCount === 0}
-              >
-                <Download size={14} />
-                Descargar Respaldo Completo (ZIP · {totalCuadradoCount} reg.)
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
-              <button
-                className="btn btn-success w-full"
-                style={{ padding: '1.25rem', fontSize: '1rem' }}
-                onClick={() => exportToExcel(false)}
-                disabled={loading || totalCuadradoCount === 0}
-              >
-                <Download size={20} />
-                Descargar Respaldo Completo (ZIP · {totalCuadradoCount} reg.)
-              </button>
-              <button
-                className="btn btn-ghost w-full"
-                style={{ padding: '0.8rem 1rem', fontSize: '0.9rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
-                onClick={() => exportToExcel(false, true)}
-                disabled={loading || totalUploadedCount === 0}
-              >
-                <Download size={16} />
-                Descargar Todo (ZIP · {totalUploadedCount} reg.)
-              </button>
-            </div>
-          )}
+            <button
+              className="btn btn-success w-full"
+              style={{ padding: '1.25rem', fontSize: '1rem' }}
+              onClick={() => exportToExcel(false)}
+              disabled={loading || totalCuadradoCount === 0}
+            >
+              <Download size={20} />
+              Descargar Respaldo Completo (ZIP · {totalCuadradoCount} reg.)
+            </button>
+            <button
+              className="btn btn-ghost w-full"
+              style={{ padding: '0.8rem 1rem', fontSize: '0.9rem', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--text-3)', background: 'rgba(255,255,255,0.02)' }}
+              onClick={() => exportToExcel(false, true)}
+              disabled={loading || totalUploadedCount === 0}
+            >
+              <Download size={16} />
+              Descargar Todo (ZIP · {totalUploadedCount} reg.)
+            </button>
+          </div>
         </div>
 
         {/* Cuadre Diario (Día a Día) */}
