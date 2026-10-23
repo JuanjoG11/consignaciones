@@ -142,7 +142,9 @@ const AdminPanel = ({ user }) => {
         Estado: c.estado,
         Cajera: c.cajera_name || '',
         Motivo_Rechazo: c.motivo_rechazo || '',
-        Carpeta_Local: format(new Date(c.fecha), "yyyy-MM-dd") // Referencia a la carpeta en el ZIP
+        Carpeta_Local: c.created_at
+          ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
+          : format(new Date(c.fecha), "yyyy-MM-dd") // Referencia a la carpeta en el ZIP
       }));
 
       const ws = XLSX.utils.json_to_sheet(data);
@@ -163,7 +165,11 @@ const AdminPanel = ({ user }) => {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const blob = await response.blob();
 
-          const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
+          // Usar created_at (fecha de subida) en zona Colombia (UTC-5), no fecha_cuadrado
+          const fechaSubida = c.created_at
+            ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
+            : format(new Date(c.fecha), "yyyy-MM-dd");
+          const dateStr = fechaSubida;
           let destinationFolder;
           if (zipByBank) {
             const bankFolder = zip.folder(`banco_${c.banco}`);
