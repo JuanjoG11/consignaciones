@@ -142,9 +142,9 @@ const AdminPanel = ({ user }) => {
         Estado: c.estado,
         Cajera: c.cajera_name || '',
         Motivo_Rechazo: c.motivo_rechazo || '',
-        Carpeta_Local: c.created_at
-          ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
-          : format(new Date(c.fecha), "yyyy-MM-dd") // Referencia a la carpeta en el ZIP
+        Carpeta_Local: c.fecha
+          ? new Date(new Date(c.fecha).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
+          : format(new Date(c.created_at || Date.now()), "yyyy-MM-dd") // Fecha de cuadre = carpeta en el ZIP
       }));
 
       const ws = XLSX.utils.json_to_sheet(data);
@@ -165,11 +165,11 @@ const AdminPanel = ({ user }) => {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const blob = await response.blob();
 
-          // Usar created_at (fecha de subida) en zona Colombia (UTC-5), no fecha_cuadrado
-          const fechaSubida = c.created_at
-            ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
-            : format(new Date(c.fecha), "yyyy-MM-dd");
-          const dateStr = fechaSubida;
+          // Usar fecha_cuadrado (c.fecha) en zona Colombia (UTC-5) para organizar carpetas
+          const fechaZIP = c.fecha
+            ? new Date(new Date(c.fecha).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
+            : format(new Date(c.created_at || Date.now()), "yyyy-MM-dd");
+          const dateStr = fechaZIP;
           let destinationFolder;
           if (zipByBank) {
             const bankFolder = zip.folder(`banco_${c.banco}`);
@@ -203,19 +203,16 @@ const AdminPanel = ({ user }) => {
   const badgeClass = (e) => e === 'Pendiente' ? 'badge-pending' : isAprobado(e) ? 'badge-valid' : 'badge-rejected';
 
 
-  // Fecha de consignación en zona horaria de Colombia (UTC-5).
-  // El admin quiere ver "qué se consignó ese día" — usamos created_at (no fecha_cuadrado)
-  // para filtrar y agrupar por el día REAL en que se hizo la consignación.
-  const getFechaConsignacion = (c) =>
-    c.created_at
-      ? new Date(new Date(c.created_at).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10)
-      : '';
+  // Para los cuadrados usamos fecha_cuadrado (c.fecha ya viene mapeado así desde supabase.js).
+  // Para pendientes/rechazados usamos created_at. Así el filtro de fecha refleja
+  // exactamente "qué se cuadró ese día" cuando el admin selecciona un rango.
+  const getFechaConsignacion = (c) => {
+    const raw = c.fecha || c.created_at || '';
+    if (!raw) return '';
+    return new Date(new Date(raw).getTime() - 5 * 60 * 60 * 1000).toISOString().substring(0, 10);
+  };
 
-  // Solo filtro de fecha por created_at (sin search/banco/cajera) — para los
-  // totales por empresa y el cuadre diario, que deben reflejar el rango de
-  // fechas seleccionado pero no los demás filtros de la barra de búsqueda.
-  // Esto excluye los registros que el servidor trae por fecha_cuadrado (Query 2)
-  // pero cuyo created_at cae fuera del rango seleccionado.
+  // Filtro solo por fecha — para totales por empresa y cuadre diario.
   const dateFiltered = consignaciones.filter(c => {
     const f = getFechaConsignacion(c);
     const okStart = dateRange.start ? f >= dateRange.start : true;
@@ -240,9 +237,6 @@ const AdminPanel = ({ user }) => {
         (!isNaN(sNum) && c.valor != null && Math.abs(c.valor - sNum) < 0.01);
     }
 
-    // Convertir created_at a hora Colombia (UTC-5) para el filtro de fecha del admin.
-    // Usamos created_at (no fecha_cuadrado) porque el admin quiere ver "qué se consignó
-    // ese día", sin importar cuándo se cuadró después.
     const fechaLocal = getFechaConsignacion(c);
     const okStart = dateRange.start ? fechaLocal >= dateRange.start : true;
     const okEnd   = dateRange.end   ? fechaLocal <= dateRange.end : true;
