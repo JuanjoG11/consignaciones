@@ -157,7 +157,10 @@ const AdminPanel = ({ user }) => {
         if (!c.file_url) return;
 
         try {
-          const response = await fetch(c.file_url);
+          // Usar URL firmada para evitar errores de CORS/acceso con URL pública
+          const downloadUrl = await mockDB.getSignedUrl(c.file_url) || c.file_url;
+          const response = await fetch(downloadUrl);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const blob = await response.blob();
 
           const dateStr = format(new Date(c.fecha), "yyyy-MM-dd");
