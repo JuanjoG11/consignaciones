@@ -251,7 +251,7 @@ const AdminPanel = ({ user }) => {
 
   const totalValidado = filtered.filter(c => isAprobado(c.estado)).reduce((a, b) => a + b.valor, 0);
   const totalFiltrado = filtered.reduce((a, b) => a + b.valor, 0);
-  const hasActiveFilters = search.trim().length > 0 || bancoFilter || cajeraFilter || empresaFilter;
+  const hasActiveFilters = search.trim().length > 0 || bancoFilter || cajeraFilter || empresaFilter || dateRange.start || dateRange.end;
   const isSearching = search.trim().length > 0;
   const heroTotal = hasActiveFilters ? totalFiltrado : totalValidado;
   const heroLabel = hasActiveFilters
@@ -625,7 +625,7 @@ const AdminPanel = ({ user }) => {
 
           {/* Botones de descarga — siempre visibles; "Filtrado" solo cuando hay filtros activos */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
-            {filtered.length < dateFiltered.length && (
+            {hasActiveFilters && (
               <>
                 <button
                   className="btn btn-success w-full animate-in"
