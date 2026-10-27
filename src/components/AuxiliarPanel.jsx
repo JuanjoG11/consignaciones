@@ -122,6 +122,8 @@ const CEDULAS_VENDEDORES = [
   // Alpina / TYM
   '1112400353', '1002954362', '24646047', '1059698128', '1093212000',
   '24397385', '1088004142', '1053810420', '1094940114', '1088253404',
+  // Diana García (Alpina + TAT)
+  '42131453',
 ];
 
 // ─── Componente ─────────────────────────────────────────────────────────────
@@ -292,9 +294,9 @@ const AuxiliarPanel = ({ user }) => {
       finalNumero = `${banco.toUpperCase()}-${Date.now()}`;
     }
 
-    // Validar nombre de cliente para vendedores (TAT y Alpina/TYM)
+    // Validar nombre de cliente para vendedores (TAT y Alpina/TYM) o cuando es Retención
     const esVendedor = CEDULAS_VENDEDORES.includes(user.cedula);
-    if (esVendedor && !nombreCliente.trim()) {
+    if ((esVendedor || banco === 'Retención') && !nombreCliente.trim()) {
       setModal({
         title: 'Falta el Cliente',
         message: 'Por favor ingresa el nombre del cliente.',
@@ -376,7 +378,7 @@ const AuxiliarPanel = ({ user }) => {
           file_url: publicUrl,
           estado: 'Pendiente', // Al editar vuelve a pendiente para revisión
           motivo_rechazo: null, // Se limpia el motivo del rechazo previo
-          ...(esVendedor && nombreCliente.trim() ? { nombre_cliente: nombreCliente.trim() } : {}),
+          ...((esVendedor || banco === 'Retención') && nombreCliente.trim() ? { nombre_cliente: nombreCliente.trim() } : {}),
         });
 
         toast.success('¡Consignación corregida! Volverá a ser revisada. 🌟', { id: tid });
@@ -393,7 +395,7 @@ const AuxiliarPanel = ({ user }) => {
           auxiliar_id: user.id,
           auxiliar_name: user.full_name,
           empresa: user.empresa || 'GENERAL',
-          ...(esVendedor && nombreCliente.trim() ? { nombre_cliente: nombreCliente.trim() } : {}),
+          ...((esVendedor || banco === 'Retención') && nombreCliente.trim() ? { nombre_cliente: nombreCliente.trim() } : {}),
         });
 
         toast.success('¡Consignación registrada correctamente! 🎉', { id: tid });
@@ -616,8 +618,8 @@ const AuxiliarPanel = ({ user }) => {
 
       {/* ── FORM ── */}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-        {/* Nombre del cliente — para vendedores TAT y Alpina/TYM */}
-        {CEDULAS_VENDEDORES.includes(user.cedula) && (
+        {/* Nombre del cliente — para vendedores TAT/Alpina/TYM O cuando el banco es Retención */}
+        {(CEDULAS_VENDEDORES.includes(user.cedula) || banco === 'Retención') && (
           <div>
             <label className="form-label">
               <span style={{ display: 'inline', marginRight: 4 }}>👤</span>
