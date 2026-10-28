@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { FileSearch, Download } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { FileSearch, Download, RefreshCw } from 'lucide-react';
+import { mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
@@ -62,8 +63,8 @@ const buildIndices = (consignaciones) => {
   return { porValor, porCedula, porComprobante };
 };
 
-/** Cruce estándar: comprobante exacto → cédula+valor → valor+fecha */
-const cruzar = ({ comprobante, cedula, valor, fechaDate }, { porValor, porCedula, porComprobante }) => {
+/** Cruce estándar: comprobante exacto → cédula+valor → valor+fecha (solo si permitido) */
+const cruzar = ({ comprobante, cedula, valor, fechaDate, permitirSoloValor = true }, { porValor, porCedula, porComprobante }) => {
   const vKey = String(Math.round(valor));
 
   // 1. Comprobante exacto
@@ -90,7 +91,10 @@ const cruzar = ({ comprobante, cedula, valor, fechaDate }, { porValor, porCedula
     return { estado: 'valor_diferente', registro: nearest, valorRegistrado: vr, diferencia: Math.abs(vr - valor), metodo: 'cédula (valor ≠)' };
   }
 
-  // 3. Solo valor (+fecha desempate)
+  // 3. Solo valor (+fecha desempate) — solo si está permitido explícitamente
+  if (!permitirSoloValor) {
+    return { estado: 'no_encontrado', registro: null, valorRegistrado: undefined, diferencia: undefined, metodo: 'sin ancla' };
+  }
   const pool = porValor[vKey] || [];
   if (pool.length === 0) return { estado: 'no_encontrado', registro: null, valorRegistrado: undefined, diferencia: undefined, metodo: '—' };
   const match = pool.length === 1 ? pool[0] : (fechaDate
@@ -101,7 +105,7 @@ const cruzar = ({ comprobante, cedula, valor, fechaDate }, { porValor, porCedula
 };
 
 // ── Tabla de resultados compartida ──────────────────────────────────────────
-const TablaResultados = ({ resultados, filtro, setFiltro, onExportar, banco }) => {
+const TablaResultados = ({ resultados, filtro, setFiltro, onExportar, onExportarPendientes, banco }) => {
   if (!resultados) return null;
   const totalOk   = resultados.filter(r => r.estado === 'ok').length;
   const totalDif  = resultados.filter(r => r.estado === 'valor_diferente').length;
@@ -153,6 +157,11 @@ const TablaResultados = ({ resultados, filtro, setFiltro, onExportar, banco }) =
         <button className="btn btn-success" onClick={onExportar} style={{ marginLeft: 'auto', padding: '0.3rem 0.9rem', fontSize: '0.75rem' }}>
           <Download size={13} /> Exportar .xlsx
         </button>
+        {totalNo > 0 && (
+          <button className="btn btn-ghost" onClick={onExportarPendientes} style={{ padding: '0.3rem 0.9rem', fontSize: '0.75rem', borderColor: 'var(--neon-red)', color: 'var(--neon-red)' }}>
+            <Download size={13} /> ❌ Exportar No Encontradas ({totalNo})
+          </button>
+        )}
       </div>
 
       {/* Tabla */}
@@ -208,15 +217,18 @@ const TablaResultados = ({ resultados, filtro, setFiltro, onExportar, banco }) =
 };
 
 // ── Exportar a Excel ─────────────────────────────────────────────────────────
-const exportarXlsx = (resultados, banco) => {
+const exportarXlsx = (resultados, banco, soloNoEncontradas = false) => {
   if (!resultados) return;
-  const rows = resultados.map(r => ({
+  const datos = soloNoEncontradas
+    ? resultados.filter(r => r.estado === 'no_encontrado')
+    : resultados;
+  const rows = datos.map(r => ({
     Banco_Extracto: banco,
     Fecha_Extracto: r.fecha || '',
+    Descripcion: r.descripcion || '',
     Ref_Extracto: r.refDisplay || '',
-    Comprobante_App: r.comprobante || '',
     Valor_Extracto: r.valor,
-    Estado: r.estado === 'ok' ? 'COINCIDE' : r.estado === 'valor_diferente' ? 'REVISAR' : 'NO ENCONTRADO',
+    Estado: r.estado === 'ok' ? 'COINCIDE' : r.estado === 'valor_diferente' ? 'REVISAR' : 'NO REGISTRADO EN APP',
     Valor_Registrado: r.valorRegistrado ?? '',
     Diferencia: r.diferencia ?? '',
     Auxiliar: r.registro?.auxiliar_name ?? '',
@@ -227,13 +239,28 @@ const exportarXlsx = (resultados, banco) => {
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `${banco}`);
-  XLSX.writeFile(wb, `Validacion_${banco}_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`);
+  const sufijo = soloNoEncontradas ? '_NO_REGISTRADAS' : '';
+  XLSX.writeFile(wb, `Validacion_${banco}${sufijo}_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.xlsx`);
 };
 
 // ════════════════════════════════════════════════════════════════════════════
 // PANEL BANCOLOMBIA
-// Formato TSV: FECHA | CIUDAD | DESCRIPCION | REF1 | REF2 | REF3 | VALOR
-// Cruce: REF1 como comprobante exacto → REF1 como cédula + valor → valor + fecha
+//
+// Formato real del portal (columnas detectadas por contenido, no por posición):
+//   FECHA | DESCRIPCION | CIUDAD | REF1 | REF2 | REF3 | VALOR | [secondary-menu] | [extras...]
+//
+// Estrategia de parseo:
+//   - Col 0 = fecha (patrón d-mes-aa o dd/mm/yyyy)
+//   - Valor = primera columna que sea un número con posible punto de miles / signo
+//   - REFs = columnas entre descripción y valor que contienen dígitos (o "- -")
+//   - Se ignoran columnas "secondary-menu" y basura al final
+//
+// Dos tipos de ingresos relevantes:
+//   1. "Consig local referen efectivo" / "Consig nal referencia efectivo"
+//      → REF1 es NIT de la cuenta destino (900973932, etc.) — cruzar por valor+fecha
+//   2. "Transferencia desde nequi" / "Pago interbanc" / "Pago de prov" con auxiliar
+//      → REF1 puede ser cédula del auxiliar o nombre "Nombre apellido 1234"
+//      → extraer cédula del nombre si tiene 4 dígitos al final, o usar REF1 si es numérico
 // ════════════════════════════════════════════════════════════════════════════
 const PanelBancolombia = ({ consignaciones }) => {
   const [texto, setTexto] = useState('');
@@ -247,95 +274,174 @@ const PanelBancolombia = ({ consignaciones }) => {
     const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
     const filas = [];
     const vistas = new Set();
+    const cedulasConocidas = new Set(Object.keys(indices.porCedula));
 
-    // Primera pasada: contar frecuencia de cada REF para detectar cuentas destino
-    // (NITs como 900973932, 72560446061 aparecen decenas de veces → no son comprobantes)
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    // Valor monetario colombiano: tiene punto de miles, coma decimal, signo, o espacios bordeando
+    // NO debe confundirse con NITs/cédulas que son dígitos puros sin puntos de miles
+    const esValor = (s) => {
+      if (!s) return false;
+      const t = s.trim();
+      // Debe tener al menos un punto (miles) o coma (decimal) O tener signo negativo
+      // Descarta números puros tipo "900973932" que son NITs
+      const tieneFormato = /[.,]/.test(t) || t.startsWith('-');
+      if (!tieneFormato) return false;
+      const limpio = t.replace(/\s|\$|COP/g, '');
+      const n = normVal(limpio);
+      return !isNaN(n);
+    };
+    // ¿Es una referencia útil (solo dígitos, sin "- -")?
+    const esRefNum = (s) => s && s !== '- -' && s !== '-' && /^\d{4,}$/.test(s.trim());
+    // ¿Parece fecha de Bancolombia? "1-oct-26", "27-oct-26", "01/10/2026", "1/10/2026"
+    // Acepta mayúsculas, minúsculas, guion o barra, año 2 o 4 dígitos
+    const esFecha = (s) => {
+      if (!s) return false;
+      const t = s.trim();
+      return (
+        /^\d{1,2}-[a-záéíóúA-Z]{3}-\d{2,4}$/.test(t) ||   // 1-oct-26 / 27-OCT-2026
+        /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(t)              // 01/10/2026
+      );
+    };
+
+    // ── Primera pasada: frecuencia de REFs para detectar NITs destino ────────
+    // Un NIT que aparece >5 veces es cuenta propia / cuenta Alpina, no un auxiliar
     const freqRef = {};
     for (const linea of lineas) {
       const cols = linea.split('\t').map(c => c.trim());
-      if (cols.length < 4) continue;
-      const v = normVal(cols[cols.length - 1]);
+      // Encontrar índice del valor (primera col monetaria después de col 1)
+      const idxValor = cols.findIndex((c, i) => i >= 2 && esValor(c));
+      if (idxValor < 0) continue;
+      const v = normVal(cols[idxValor]);
       if (isNaN(v) || v < 1000) continue;
-      const esRef = r => r && r !== '- -' && r !== '-' && /\d/.test(r);
-      const r1 = esRef(cols[cols.length - 4]) ? cols[cols.length - 4].trim() : null;
-      if (r1) freqRef[r1] = (freqRef[r1] || 0) + 1;
+      // REFs son las columnas entre descripción (col 2 aprox) e idxValor
+      for (let i = Math.max(2, idxValor - 4); i < idxValor; i++) {
+        const r = cols[i]?.trim();
+        if (esRefNum(r)) freqRef[r] = (freqRef[r] || 0) + 1;
+      }
     }
-    // REF que aparece >3 veces = cuenta destino (NIT/cuenta Alpina), no comprobante
-    const esCuentaDestino = (ref) => ref && (freqRef[ref] || 0) > 3;
+    const esNitDestino = (ref) => ref && (freqRef[ref] || 0) > 5;
 
-    // Conjunto de cédulas conocidas en el sistema (para filtrar relevantes)
-    const cedulasConocidas = new Set(Object.keys(indices.porCedula));
-
-    // Segunda pasada: solo procesar filas donde REF1 es cédula conocida
-    // O donde REF1 es cuenta destino pero el valor aparece registrado en el sistema
+    // ── Segunda pasada: extraer filas relevantes ──────────────────────────────
     for (const linea of lineas) {
       const cols = linea.split('\t').map(c => c.trim());
-      if (cols.length < 4) continue;
-      const valorRaw = cols[cols.length - 1];
-      const ref1Raw  = cols[cols.length - 4];
-      const ref2Raw  = cols[cols.length - 3];
-      const valor = normVal(valorRaw);
-      if (isNaN(valor) || valor < 1000) continue;
+      if (cols.length < 3) continue;
 
-      const esRef = r => r && r !== '- -' && r !== '-' && /\d/.test(r);
-      const ref1 = esRef(ref1Raw) ? ref1Raw.trim() : null;
-      const ref2 = esRef(ref2Raw) ? ref2Raw.trim() : null;
-      if (!ref1 && !ref2) continue;
+      // Col 0 debe ser fecha
+      if (!esFecha(cols[0])) continue;
+      const fecha = cols[0].trim();
 
-      const clave = `${ref1||ref2}|${valor}`;
+      // Buscar columna del valor: primera columna monetaria desde índice 2
+      // El valor positivo es ingreso, negativo es egreso — ignoramos egresos
+      let idxValor = -1;
+      for (let i = 2; i < cols.length; i++) {
+        if (esValor(cols[i])) { idxValor = i; break; }
+      }
+      if (idxValor < 0) continue;
+
+      const valor = normVal(cols[idxValor]);
+      if (isNaN(valor) || valor <= 0) continue; // solo ingresos positivos
+
+      // Columnas reales: FECHA | CIUDAD | DESCRIPCION | REF1 | REF2 | REF3 | VALOR | secondary-menu
+      // cols[1] = CIUDAD, cols[2] = DESCRIPCION
+      const descripcion = cols[2] || cols[1] || '';
+
+      // REFs: todas las columnas entre índice 2 y idxValor que sean numéricas o "- -"
+      const refs = [];
+      for (let i = 2; i < idxValor; i++) {
+        const r = cols[i].trim();
+        if (r && r !== '- -' && r !== '-') refs.push(r);
+      }
+
+      // ── Detectar cédula y comprobante ────────────────────────────────────
+      let cedula = null;
+      let comprobante = null;
+      let refDisplay = descripcion;
+
+      const esConsigDirecta = /consig.*referen/i.test(descripcion);
+
+      if (esConsigDirecta) {
+        // Consignación directa al banco: las REFs son NITs de cuenta destino (900973932, etc.)
+        // NO usar como cédula ni comprobante — cruzar solo por valor+fecha
+        // El comprobante lo tiene el auxiliar en su recibo físico, no aparece en el extracto
+        refDisplay = refs[0] ? `${refs[0]} · ${descripcion}` : descripcion;
+
+      } else if (/nequi|transferencia desde/i.test(descripcion)) {
+        // Transferencia Nequi: REF puede ser "Nombre apellido 1234" — los 4 dígitos son
+        // los últimos del celular Nequi, NO de la cédula. Solo asignar si REF es cédula exacta.
+        for (const r of refs) {
+          if (esRefNum(r) && cedulasConocidas.has(r)) { cedula = r; refDisplay = r; break; }
+        }
+
+      } else {
+        // Otros movimientos (Pago interbanc, Pago de prov, etc.)
+        // REF puede ser cédula directa de auxiliar
+        for (const r of refs) {
+          if (!esRefNum(r)) continue;
+          if (cedulasConocidas.has(r) && !esNitDestino(r)) { cedula = r; break; }
+          if (!esNitDestino(r) && !comprobante) { comprobante = r; }
+        }
+        refDisplay = refs.length > 0 ? `${refs[0]} · ${descripcion}` : descripcion;
+      }
+
+      // Incluir TODOS los ingresos positivos del extracto.
+      // El objetivo es verificar si cada peso que entró al banco está registrado en ConsigControl.
+      // Solo excluir egresos (ya filtrados por valor <= 0) y comisiones/impuestos propios del banco.
+      const esGastoBanco = /impto gobierno|cobro iva|comision rec|iva comision|cuota manejo|cuota plan canal|servicio pago|servicio por pago/i.test(descripcion);
+      if (esGastoBanco) continue;
+
+      // Todo ingreso pasa — cruzar por cédula si se tiene, sino por valor+fecha
+      const permitirSoloValor = true;
+
+      const clave = `${fecha}|${valor}|${refs[0] || ''}`;
       if (vistas.has(clave)) continue;
       vistas.add(clave);
 
-      const fecha = cols[0] || '';
-      const descripcion = cols.length >= 7 ? cols[2] : (cols[1] || '');
-
-      // Determinar si REF1 es una cédula de auxiliar conocida
-      const ref1EsCedula = ref1 && cedulasConocidas.has(ref1);
-      // Si REF1 es cuenta destino, no usarla como comprobante ni cédula
-      const comprobante = esCuentaDestino(ref1) ? null : ref1;
-      const cedula      = ref1EsCedula ? ref1 : null;
-
-      // Filtrar: solo incluir si hay cédula conocida O si el valor existe en el sistema
-      const valorEnSistema = indices.porValor[String(Math.round(valor))];
-      if (!cedula && !valorEnSistema) continue; // movimiento de cliente externo, ignorar
-
-      filas.push({ ref1, ref2, comprobante, cedula, valor, fecha, descripcion, lineaOriginal: linea });
+      filas.push({ fecha, descripcion, refs, cedula, comprobante, valor, refDisplay });
     }
 
     if (filas.length === 0) {
-      toast.error('No se encontraron movimientos de auxiliares registrados. El extracto puede ser del mes incorrecto o los auxiliares no han registrado esas consignaciones.');
+      toast.error('No se encontraron movimientos de auxiliares. Verifica que el rango de fechas del validador coincida con el extracto.');
       return;
     }
 
     const res = filas.map(f => {
       const fechaDate = parseFecha(f.fecha);
-      const cruce = cruzar({ comprobante: f.comprobante, cedula: f.cedula, valor: f.valor, fechaDate }, indices);
+      // Lógica de cruce para Bancolombia:
+      // - Si tenemos cédula identificada → cruzar cédula+valor (confiable)
+      // - Si es consignación directa al banco → cruzar valor+fecha (acotado al día)
+      // - Transferencias Nequi sin cédula → no cruzar (sin ancla)
+      const esConsigDirecta2 = /consig.*referen/i.test(f.descripcion);
+      const tieneCedula = !!f.cedula;
+      const cruce = cruzar(
+        { comprobante: f.comprobante, cedula: f.cedula, valor: f.valor, fechaDate, permitirSoloValor: true },
+        indices
+      );
       return {
         ...f,
         ...cruce,
-        comprobante: cruce.registro?.numero_comprobante || f.ref1 || f.ref2 || '—',
-        refDisplay: `${f.ref1 || ''}${f.descripcion ? ' · ' + f.descripcion : ''}`,
+        comprobante: cruce.registro?.numero_comprobante || f.comprobante || f.refs[0] || '—',
+        refDisplay: f.refDisplay,
       };
     });
 
     setResultados(res);
-    const ok = res.filter(r => r.estado === 'ok').length;
+    const ok  = res.filter(r => r.estado === 'ok').length;
     const dif = res.filter(r => r.estado === 'valor_diferente').length;
-    const no = res.filter(r => r.estado === 'no_encontrado').length;
-    toast.success(`Bancolombia: ${filas.length} movimientos relevantes · ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    const no  = res.filter(r => r.estado === 'no_encontrado').length;
+    toast.success(`Bancolombia: ${filas.length} movimientos · ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
   }, [texto, indices]);
 
   return (
     <div>
       <textarea value={texto} onChange={e => setTexto(e.target.value)}
-        placeholder={'Pega el extracto Bancolombia (copia con Ctrl+A, Ctrl+C desde el portal).\n\nFormato TSV esperado:\nFECHA\tCIUDAD\tDESCRIPCION\tREF1\tREF2\tREF3\tVALOR\n\nSolo se procesan ingresos (valores positivos).'}
+        placeholder={'Pega el extracto Bancolombia (copia con Ctrl+A, Ctrl+C desde el portal).\n\nFormato real del portal:\nFECHA\tDESCRIPCION\tCIUDAD\tREF1\tREF2\tREF3\tVALOR\tsecondary-menu\n\nEjemplo:\n27-oct-26\tTransferencia desde nequi\tDosquebradas\tJuan ramirez 9025\t- -\t- -\t 181.473 \tsecondary-menu\n\nSolo se procesan ingresos (valores positivos ≥ $1.000).'}
         style={{ width: '100%', minHeight: 160, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--text-1)', padding: '0.75rem', lineHeight: 1.6, boxSizing: 'border-box' }}
       />
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
         <button className="btn btn-primary" onClick={analizar} disabled={!texto.trim()} style={{ flex: 1 }}><FileSearch size={15} /> Analizar</button>
         <button className="btn btn-ghost" onClick={() => { setTexto(''); setResultados(null); setFiltro('todos'); }}>Limpiar</button>
       </div>
-      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Bancolombia')} banco="Bancolombia" /></div>}
+      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Bancolombia')} onExportarPendientes={() => exportarXlsx(resultados, 'Bancolombia', true)} banco="Bancolombia" /></div>}
     </div>
   );
 };
@@ -433,7 +539,7 @@ const PanelDavivienda = ({ consignaciones }) => {
         <button className="btn btn-primary" onClick={analizar} disabled={!texto.trim()} style={{ flex: 1 }}><FileSearch size={15} /> Analizar</button>
         <button className="btn btn-ghost" onClick={() => { setTexto(''); setResultados(null); setFiltro('todos'); }}>Limpiar</button>
       </div>
-      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Davivienda')} banco="Davivienda" /></div>}
+      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Davivienda')} onExportarPendientes={() => exportarXlsx(resultados, 'Davivienda', true)} banco="Davivienda" /></div>}
     </div>
   );
 };
@@ -518,7 +624,7 @@ const PanelBuzon = ({ consignaciones }) => {
         <button className="btn btn-primary" onClick={analizar} disabled={!texto.trim()} style={{ flex: 1 }}><FileSearch size={15} /> Analizar</button>
         <button className="btn btn-ghost" onClick={() => { setTexto(''); setResultados(null); setFiltro('todos'); }}>Limpiar</button>
       </div>
-      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Buzon_Atlas')} banco="Buzón Atlas" /></div>}
+      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Buzon_Atlas')} onExportarPendientes={() => exportarXlsx(resultados, 'Buzon_Atlas', true)} banco="Buzón Atlas" /></div>}
     </div>
   );
 };
@@ -599,13 +705,14 @@ const PanelZenu = ({ consignaciones }) => {
         <button className="btn btn-primary" onClick={analizar} disabled={!texto.trim()} style={{ flex: 1 }}><FileSearch size={15} /> Analizar</button>
         <button className="btn btn-ghost" onClick={() => { setTexto(''); setResultados(null); setFiltro('todos'); }}>Limpiar</button>
       </div>
-      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Zenu_SAP')} banco="Zenú SAP" /></div>}
+      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Zenu_SAP')} onExportarPendientes={() => exportarXlsx(resultados, 'Zenu_SAP', true)} banco="Zenú SAP" /></div>}
     </div>
   );
 };
 
 // ════════════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL EXPORTADO
+// Autónomo: tiene su propio selector de fechas y carga sus propias consignaciones
 // ════════════════════════════════════════════════════════════════════════════
 const BANCOS = [
   { id: 'bancolombia', label: '🟡 Bancolombia', color: '#ffd166' },
@@ -614,20 +721,115 @@ const BANCOS = [
   { id: 'zenu',        label: '🟣 Zenú SAP',     color: '#9b5cff' },
 ];
 
-const ValidadorExtracto = ({ consignaciones }) => {
+const getDefaultRange = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const days = new Date(y, now.getMonth() + 1, 0).getDate();
+  return { start: `${y}-${m}-01`, end: `${y}-${m}-${days}` };
+};
+
+const ValidadorExtracto = ({ user, consignacionesAdmin }) => {
   const [banco, setBanco] = useState('bancolombia');
+
+  // Rango propio — inicia en el mes actual
+  const [rangeDraft, setRangeDraft] = useState(getDefaultRange);
+  const [rangeActive, setRangeActive] = useState(getDefaultRange);
+
+  // Consignaciones: usa las del admin si están disponibles, sino carga propias
+  const [consignacionesPropias, setConsignacionesPropias] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const consignaciones = (consignacionesAdmin && consignacionesAdmin.length > 0)
+    ? consignacionesAdmin
+    : consignacionesPropias;
+
+  const cargar = useCallback(async (range) => {
+    // Solo cargar si no tenemos datos del admin
+    if (consignacionesAdmin && consignacionesAdmin.length > 0) return;
+    setLoading(true);
+    const data = await mockDB.getConsignaciones({ dateFrom: range.start, dateTo: range.end });
+    let filtered = data || [];
+    if (user?.empresa === 'TAT') filtered = filtered.filter(d => d.empresa === 'TAT');
+    else if (user?.role === 'admin' && user?.empresa !== 'TAT') filtered = filtered.filter(d => d.empresa !== 'TAT');
+    setConsignacionesPropias(filtered);
+    setLoading(false);
+  }, [user, consignacionesAdmin]);
+
+  useEffect(() => { cargar(rangeActive); }, []);
+
+  const aplicar = () => {
+    setRangeActive(rangeDraft);
+    cargar(rangeDraft);
+  };
+
+  const rangoLabel = `${rangeActive.start} → ${rangeActive.end}`;
+  const dirty = rangeDraft.start !== rangeActive.start || rangeDraft.end !== rangeActive.end;
 
   return (
     <div className="animate-in">
-      {/* Hero */}
-      <div className="hero-card" style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', boxShadow: '0 4px 24px rgba(79,142,255,0.2)', marginBottom: '1.5rem' }}>
-        <div className="hero-label">🔍 Validador de Extractos por Banco</div>
-        <div className="hero-sub" style={{ maxWidth: 520, margin: '0.5rem auto 0', lineHeight: 1.5 }}>
-          Selecciona el banco, pega el extracto copiado del portal y el sistema lo cruza automáticamente contra las consignaciones registradas.
+      {/* ── Selector de fechas propio ──────────────────────────────────── */}
+      <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1.25rem', background: 'rgba(79,142,255,0.06)', border: '1px solid rgba(79,142,255,0.2)' }}>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.72rem' }}>Desde</label>
+            <input
+              type="date"
+              className="form-control"
+              style={{ width: 160, ...(dirty && rangeDraft.start !== rangeActive.start ? { borderColor: 'var(--neon-orange)' } : {}) }}
+              value={rangeDraft.start}
+              onChange={e => setRangeDraft(p => ({ ...p, start: e.target.value }))}
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={{ fontSize: '0.72rem' }}>Hasta</label>
+            <input
+              type="date"
+              className="form-control"
+              style={{ width: 160, ...(dirty && rangeDraft.end !== rangeActive.end ? { borderColor: 'var(--neon-orange)' } : {}) }}
+              value={rangeDraft.end}
+              onChange={e => setRangeDraft(p => ({ ...p, end: e.target.value }))}
+            />
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={aplicar}
+            disabled={loading || !dirty}
+            style={{ opacity: dirty ? 1 : 0.45, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            {loading ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Cargando…</> : <><RefreshCw size={14} /> Cargar período</>}
+          </button>
+          {/* Accesos rápidos de mes */}
+          {[-1, 0].map(offset => {
+            const d = new Date();
+            d.setMonth(d.getMonth() + offset);
+            const y = d.getFullYear();
+            const m = d.getMonth();
+            const mStr = String(m + 1).padStart(2, '0');
+            const days = new Date(y, m + 1, 0).getDate();
+            const label = d.toLocaleDateString('es-CO', { month: 'short' }).replace(/^\w/, c => c.toUpperCase());
+            const r = { start: `${y}-${mStr}-01`, end: `${y}-${mStr}-${days}` };
+            const isActive = rangeActive.start === r.start && rangeActive.end === r.end;
+            return (
+              <button key={offset} className="btn btn-ghost" onClick={() => { setRangeDraft(r); setRangeActive(r); cargar(r); }}
+                style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', ...(isActive ? { borderColor: 'var(--neon-blue)', color: 'var(--neon-blue)' } : {}) }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        {/* Info del rango activo */}
+        <div style={{ marginTop: '0.6rem', fontSize: '0.72rem', color: 'var(--text-3)', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {loading
+            ? <span>⏳ Cargando consignaciones…</span>
+            : consignaciones.length > 0
+            ? <span>✅ <strong style={{ color: 'var(--neon-green)' }}>{consignaciones.length}</strong> consignaciones cargadas para <strong style={{ color: 'var(--neon-blue)' }}>{rangoLabel}</strong></span>
+            : <span style={{ color: 'var(--neon-yellow)' }}>⚠️ Sin consignaciones para <strong>{rangoLabel}</strong> — cambia el rango o verifica que haya registros en ese período.</span>
+          }
         </div>
       </div>
 
-      {/* Sub-pestañas por banco */}
+      {/* ── Sub-pestañas por banco ─────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
         {BANCOS.map(b => (
           <button key={b.id} onClick={() => setBanco(b.id)} style={{
@@ -642,7 +844,7 @@ const ValidadorExtracto = ({ consignaciones }) => {
         ))}
       </div>
 
-      {/* Panel activo */}
+      {/* ── Panel activo ──────────────────────────────────────────────── */}
       <div className="card" style={{ padding: '1.25rem' }}>
         {banco === 'bancolombia' && <PanelBancolombia consignaciones={consignaciones} />}
         {banco === 'davivienda'  && <PanelDavivienda  consignaciones={consignaciones} />}

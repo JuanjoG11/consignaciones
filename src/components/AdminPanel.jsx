@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter, LayoutGrid, List, Trash2 } from 'lucide-react';
+import { Download, TrendingUp, Clock, Building2, ListChecks, CheckCircle2, XCircle, AlertCircle, Search, Filter, LayoutGrid, List, Trash2, FileSearch } from 'lucide-react';
 import { mockDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
+import ValidadorExtracto from './ValidadorExtracto';
 
 const money = (n) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n);
@@ -49,6 +50,7 @@ const AdminPanel = ({ user }) => {
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   const [showFilters, setShowFilters] = useState(false);
   const [expandedEmpresa, setExpandedEmpresa] = useState(null); // para el breakdown por empresa
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'validador'
 
   // Helper to set date range para un mes dado (índice 0-11)
   const setMonthRange = (monthIdx) => {
@@ -351,6 +353,38 @@ const AdminPanel = ({ user }) => {
 
   return (
     <div className="page animate-in">
+      {/* ── Pestañas ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.25rem', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', padding: '4px', width: 'fit-content' }}>
+        {[
+          { id: 'dashboard', label: 'Panel General', icon: <LayoutGrid size={15} /> },
+          { id: 'validador', label: 'Validador Extracto', icon: <FileSearch size={15} /> },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.45rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700,
+              cursor: 'pointer', border: 'none',
+              background: activeTab === tab.id ? 'var(--neon-purple)' : 'transparent',
+              color: activeTab === tab.id ? '#fff' : 'var(--text-3)',
+              transition: 'all 0.18s',
+              boxShadow: activeTab === tab.id ? '0 2px 10px rgba(155,92,255,0.35)' : 'none',
+            }}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Pestaña Validador ─────────────────────────────────────────────── */}
+      {activeTab === 'validador' && (
+        <ValidadorExtracto user={user} consignacionesAdmin={consignaciones} />
+      )}
+
+      {/* ── Pestaña Dashboard (todo el contenido anterior) ────────────────── */}
+      {activeTab === 'dashboard' && (<>
+
       {/* Filters & Search Bar */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center' }}>
         <div className="search-wrap" style={{ flex: 1, margin: 0, position: 'relative' }}>
@@ -849,6 +883,7 @@ const AdminPanel = ({ user }) => {
           </div>
         )}
       </div>
+      </>) /* fin pestaña dashboard */}
     </div>
   );
 };
