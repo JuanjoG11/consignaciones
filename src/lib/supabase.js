@@ -539,3 +539,76 @@ export const mockDB = {
     return fileUrl;
   },
 };
+
+// ── HISTORIAL DE VALIDACIONES ─────────────────────────────────────────────────
+export const historialDB = {
+
+  // Guardar resultado de una validación
+  guardar: async ({ adminId, adminName, banco, periodoDesdePeriodo, periodoHasta, resultados }) => {
+    if (!resultados || resultados.length === 0) return { error: 'Sin resultados' };
+
+    const coinciden      = resultados.filter(r => r.estado === 'ok');
+    const revisar        = resultados.filter(r => r.estado === 'valor_diferente');
+    const noEncontrados  = resultados.filter(r => r.estado === 'no_encontrado');
+
+    // Detalle comprimido: nombres cortos para ahorrar espacio en JSONB
+    const detalle = resultados.map(r => ({
+      f:    r.fecha || '',
+      d:    r.descripcion || r.refDisplay || '',
+      v:    r.valor,
+      e:    r.estado === 'ok' ? 1 : r.estado === 'valor_diferente' ? 2 : 0,
+      vr:   r.valorRegistrado ?? null,
+      dif:  r.diferencia ?? null,
+      aux:  r.registro?.auxiliar_name ?? null,
+      bco:  r.registro?.banco ?? null,
+      m:    r.metodo ?? null,
+      comp: r.comprobante ?? null,
+    }));
+
+    const { data, error } = await supabase
+      .from('historial_validaciones')
+      .insert([{
+        admin_id:             adminId,
+        admin_name:           adminName,
+        banco,
+        periodo_desde:        periodoDesdePeriodo || null,
+        periodo_hasta:        periodoHasta || null,
+        total_movimientos:    resultados.length,
+        total_coinciden:      coinciden.length,
+        total_revisar:        revisar.length,
+        total_no_encontrados: noEncontrados.length,
+        suma_total:           resultados.reduce((a, r) => a + (r.valor || 0), 0),
+        suma_coinciden:       coinciden.reduce((a, r) => a + (r.valor || 0), 0),
+        detalle,
+      }])
+      .select('id')
+      .single();
+
+    if (error) { console.error('Error guardando validación:', error); return { error }; }
+    return { id: data.id, error: null };
+  },
+
+  // Listar validaciones (sin detalle para no traer payloads grandes)
+  listar: async ({ banco, limit = 100 } = {}) => {
+    let q = supabase
+      .from('historial_validaciones')
+      .select('id, created_at, admin_name, banco, periodo_desde, periodo_hasta, total_movimientos, total_coinciden, total_revisar, total_no_encontrados, suma_total, suma_coinciden')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (banco) q = q.eq('banco', banco);
+    const { data, error } = await q;
+    if (error) { console.error('Error cargando historial:', error); return []; }
+    return data || [];
+  },
+
+  // Obtener detalle completo de una validación
+  detalle: async (id) => {
+    const { data, error } = await supabase
+      .from('historial_validaciones')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) { console.error('Error cargando detalle:', error); return null; }
+    return data;
+  },
+};

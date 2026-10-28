@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { FileSearch, Download, RefreshCw } from 'lucide-react';
-import { mockDB } from '../lib/supabase';
+import { FileSearch, Download, RefreshCw, History, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { mockDB, historialDB } from '../lib/supabase';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
@@ -28,12 +28,18 @@ const normVal = (str) => {
 const parseFecha = (str) => {
   if (!str) return null;
   str = str.trim();
-  // DD/MM/YYYY o D/M/YYYY
+  // DD/MM/YYYY o D/M/YYYY — primero intentar como colombiano si día > 12
   let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (m) return new Date(+m[3] < 100 ? 2000 + +m[3] : +m[3], +m[2] - 1, +m[1]);
-  // M/D/YYYY (americano) — solo si mes ≤ 12 y día ≤ 31
-  m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return new Date(+m[3], +m[1] - 1, +m[2]);
+  if (m) {
+    const a = +m[3] < 100 ? 2000 + +m[3] : +m[3];
+    const x = +m[1], y = +m[2];
+    // Si el primer número > 12, es DD/MM (colombiano)
+    if (x > 12) return new Date(a, y - 1, x);
+    // Si el segundo > 12, es MM/DD (americano Atlas)
+    if (y > 12) return new Date(a, x - 1, y);
+    // Ambos ≤ 12: asumir DD/MM (colombiano por defecto)
+    return new Date(a, y - 1, x);
+  }
   // YYYY-MM-DD
   m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
@@ -262,7 +268,7 @@ const exportarXlsx = (resultados, banco, soloNoEncontradas = false) => {
 //      → REF1 puede ser cédula del auxiliar o nombre "Nombre apellido 1234"
 //      → extraer cédula del nombre si tiene 4 dígitos al final, o usar REF1 si es numérico
 // ════════════════════════════════════════════════════════════════════════════
-const PanelBancolombia = ({ consignaciones }) => {
+const PanelBancolombia = ({ consignaciones, onGuardar }) => {
   const [texto, setTexto] = useState('');
   const [resultados, setResultados] = useState(null);
   const [filtro, setFiltro] = useState('todos');
@@ -429,6 +435,7 @@ const PanelBancolombia = ({ consignaciones }) => {
     const dif = res.filter(r => r.estado === 'valor_diferente').length;
     const no  = res.filter(r => r.estado === 'no_encontrado').length;
     toast.success(`Bancolombia: ${filas.length} movimientos · ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    onGuardar?.(res);
   }, [texto, indices]);
 
   return (
@@ -441,17 +448,31 @@ const PanelBancolombia = ({ consignaciones }) => {
         <button className="btn btn-primary" onClick={analizar} disabled={!texto.trim()} style={{ flex: 1 }}><FileSearch size={15} /> Analizar</button>
         <button className="btn btn-ghost" onClick={() => { setTexto(''); setResultados(null); setFiltro('todos'); }}>Limpiar</button>
       </div>
-      {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Bancolombia')} onExportarPendientes={() => exportarXlsx(resultados, 'Bancolombia', true)} banco="Bancolombia" /></div>}
+    x1        {resultados && <div style={{ marginTop: '1rem' }}><TablaResultados resultados={resultados} filtro={filtro} setFiltro={setFiltro} onExportar={() => exportarXlsx(resultados, 'Bancolombia')} onExportarPendientes={() => exportarXlsx(resultados, 'Bancolombia', true)} banco="Bancolombia" /></div>}
     </div>
   );
 };
 
 // ════════════════════════════════════════════════════════════════════════════
 // PANEL DAVIVIENDA
-// Formato TSV: FECHA | DOC | HORA | VALOR TOTAL | ID ORIGEN | REF1 | REF2 | TERMINAL
-// Cruce: DOC como comprobante exacto → ID Origen como cédula + valor → valor + fecha
 // ════════════════════════════════════════════════════════════════════════════
-const PanelDavivienda = ({ consignaciones }) => {
+// PANEL DAVIVIENDA
+//
+// Formato real del extracto (17 columnas TSV):
+// Fecha | Doc. | Tran | Ofi. | Jor. | Hora | Mot. | Desc Mot. | Valor Total |
+// Valor Cheque | ID Origen/Destino | Referencia 1 | Referencia 2 | Terminal |
+// Fecha Movto. | Ciudad | Valor Saldo
+//
+// Ingresos = "Notas Credito" o "Deposito Especial" (col 2 = Tran)
+// Ignorar  = "Notas Debito" (GMF, PSE, cobros)
+// Ignorar  = Doc 99999999 / 99999998 (ajustes internos)
+//
+// Cruce:
+//   - Doc como comprobante exacto (auxiliar registra el nro de movimiento)
+//   - ID Origen/Destino como cédula + valor (transferencias App Davivienda)
+//   - Valor + fecha como fallback
+// ════════════════════════════════════════════════════════════════════════════
+const PanelDavivienda = ({ consignaciones, onGuardar }) => {
   const [texto, setTexto] = useState('');
   const [resultados, setResultados] = useState(null);
   const [filtro, setFiltro] = useState('todos');
@@ -466,73 +487,78 @@ const PanelDavivienda = ({ consignaciones }) => {
 
     for (const linea of lineas) {
       const cols = linea.split('\t').map(c => c.trim());
-      // Formato: FECHA | DOC | HORA | VALOR | ID | REF1 | REF2 | TERMINAL (8 cols)
-      // o variantes con menos columnas
-      if (cols.length < 4) continue;
+      // Necesitamos al menos: Fecha(0) Doc(1) Tran(2) ... Valor Total(8)
+      if (cols.length < 9) continue;
 
-      // Intentar detectar columnas por contenido
-      // Col 0 = fecha (contiene /)
-      // Col 1 = Doc (número)
-      // Col 2 = hora (contiene :) o puede faltar
-      // Col 3 = Valor (contiene $ o número)
-      let fecha = '', doc = '', hora = '', valorRaw = '', idOrigen = '';
+      const fecha     = cols[0]?.trim();
+      const doc       = cols[1]?.trim();
+      const tran      = cols[2]?.trim(); // "Notas Credito", "Notas Debito", "Deposito Especial"
+      const hora      = cols[5]?.trim();
+      const descMot   = cols[7]?.trim(); // descripción completa del movimiento
+      const valorRaw  = cols[8]?.trim(); // "Valor Total"
+      const idOrigen  = cols[10]?.trim(); // ID Origen/Destino (cédula/NIT del remitente)
+      const ref1      = cols[11]?.trim(); // Referencia 1
 
-      if (cols.length >= 8) {
-        // 8 cols estándar
-        [fecha, doc, hora, valorRaw, idOrigen] = cols;
-      } else if (cols.length >= 4) {
-        fecha = cols[0];
-        doc = cols[1];
-        // cols[2] puede ser hora o valor
-        if (cols[2].includes(':') && cols.length >= 5) {
-          hora = cols[2]; valorRaw = cols[3]; idOrigen = cols[4] || '';
-        } else {
-          valorRaw = cols[2]; idOrigen = cols[3] || '';
-        }
-      }
+      // Solo ingresos
+      if (tran === 'Notas Debito') continue;
+      if (!tran || (!tran.includes('Credito') && !tran.includes('Deposito'))) continue;
+
+      // Ignorar ajustes internos del banco
+      if (doc === '99999999' || doc === '99999998') continue;
+      // Ignorar débitos/cobros disfrazados en notas crédito
+      if (/cobro|gmf|gravamen/i.test(descMot)) continue;
 
       const valor = normVal(valorRaw);
-      if (isNaN(valor) || valor < 1000) continue; // solo ingresos
-
-      // Doc 99999999 = ajuste de saldo, ignorar
-      if (doc === '99999999' || doc === '99999998') continue;
+      if (isNaN(valor) || valor < 1000) continue;
 
       const clave = `${doc}|${valor}`;
       if (vistas.has(clave)) continue;
       vistas.add(clave);
 
-      // Limpiar cédula del ID Origen (puede venir con apóstrofe o vacío)
-      const cedLimpia = idOrigen.replace(/^'/, '').replace(/^0+/, '') || null;
-      const esCedula = cedLimpia && /^\d{6,12}$/.test(cedLimpia) && cedLimpia !== '0';
+      // Limpiar ID Origen: viene como "41870988" o vacío
+      const idLimpio = (idOrigen || '').replace(/^'+/, '').replace(/^0+/, '').trim();
+      const esCedula = idLimpio && /^\d{6,12}$/.test(idLimpio) && idLimpio !== '0';
+
+      // Extraer nombre del remitente desde descMot si existe
+      // "Abono Transferencia 41870988 DIANA PAT AGUIRRE" → "DIANA PAT AGUIRRE"
+      const mNombre = descMot.match(/\d{6,12}\s+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+)$/);
+      const nombreRemitente = mNombre ? mNombre[1].trim() : '';
 
       filas.push({
-        fecha, doc, hora, valor,
-        cedula: esCedula ? cedLimpia : null,
-        refDisplay: `Doc: ${doc}${hora ? ' ' + hora : ''}${esCedula ? ' · ID: ' + cedLimpia : ''}`,
-        lineaOriginal: linea,
+        fecha, doc, hora, tran, descMot, valor,
+        cedula: esCedula ? idLimpio : null,
+        refDisplay: nombreRemitente
+          ? `${nombreRemitente} (${idLimpio}) · ${doc}`
+          : `Doc: ${doc}${idLimpio ? ' · ID: ' + idLimpio : ''}`,
       });
     }
 
-    if (filas.length === 0) { toast.error('No se encontraron movimientos válidos. Verifica el formato Davivienda.'); return; }
+    if (filas.length === 0) {
+      toast.error('No se encontraron ingresos válidos. Verifica que el extracto sea Davivienda y que haya filas de "Notas Credito" o "Deposito Especial".');
+      return;
+    }
 
     const res = filas.map(f => {
       const fechaDate = parseFecha(f.fecha);
-      // Para Davivienda el Doc es el número que el auxiliar puede haber registrado
-      const cruce = cruzar({ comprobante: f.doc, cedula: f.cedula, valor: f.valor, fechaDate }, indices);
+      const cruce = cruzar(
+        { comprobante: f.doc, cedula: f.cedula, valor: f.valor, fechaDate, permitirSoloValor: true },
+        indices
+      );
       return { ...f, ...cruce, comprobante: cruce.registro?.numero_comprobante || f.doc || '—' };
     });
 
     setResultados(res);
-    const ok = res.filter(r => r.estado === 'ok').length;
+    const ok  = res.filter(r => r.estado === 'ok').length;
     const dif = res.filter(r => r.estado === 'valor_diferente').length;
-    const no = res.filter(r => r.estado === 'no_encontrado').length;
-    toast.success(`Davivienda: ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    const no  = res.filter(r => r.estado === 'no_encontrado').length;
+    toast.success(`Davivienda: ${res.length} movimientos · ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    onGuardar?.(res);
   }, [texto, indices]);
 
   return (
     <div>
       <textarea value={texto} onChange={e => setTexto(e.target.value)}
-        placeholder={'Pega el extracto Davivienda.\n\nFormato TSV esperado:\nFECHA\tDOC\tHORA\tVALOR TOTAL\tID ORIGEN/DESTINO\tREFERENCIA 1\tREFERENCIA 2\tTERMINAL\n\nEjemplo:\n25/09/2026\t13164740\t13:16:47\t$ 29.388,00\t41870988\t...'}
+        placeholder={'Pega el extracto Davivienda.\n\nFormato TSV (17 columnas):\nFecha\tDoc.\tTran\tOfi.\tJor.\tHora\tMot.\tDesc Mot.\tValor Total\tValor Cheque\tID Origen/Destino\tReferencia 1\tReferencia 2\tTerminal\tFecha Movto.\tCiudad\tValor Saldo\n\nEjemplo:\n23/10/2026\t10023179\tNotas Credito\tApp Davivienda\tNormal\t10:02:31\t6\tAbono Transferencia 41870988 DIANA PAT AGUIRRE\t$ 29.388,00\t$ 0,00\t41870988\t...\n\nSolo se procesan Notas Credito y Deposito Especial (ingresos).'}
         style={{ width: '100%', minHeight: 160, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--text-1)', padding: '0.75rem', lineHeight: 1.6, boxSizing: 'border-box' }}
       />
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -549,7 +575,7 @@ const PanelDavivienda = ({ consignaciones }) => {
 // Formato TSV: DATE | (vacío) | USER "NOMBRE (V/Tcedula)" | BARCODE | AMOUNT
 // Cruce: cédula extraída del User + valor + fecha (muy confiable)
 // ════════════════════════════════════════════════════════════════════════════
-const PanelBuzon = ({ consignaciones }) => {
+const PanelBuzon = ({ consignaciones, onGuardar }) => {
   const [texto, setTexto] = useState('');
   const [resultados, setResultados] = useState(null);
   const [filtro, setFiltro] = useState('todos');
@@ -563,43 +589,56 @@ const PanelBuzon = ({ consignaciones }) => {
 
     for (const linea of lineas) {
       const cols = linea.split('\t').map(c => c.trim());
-      // Formato: DATE | (vacío posible) | USER | BARCODE | AMOUNT
-      // A veces la col "vacío" no está → 4 cols en lugar de 5
-      // Detectamos por: última col = amount (número), anteúltima = barcode (dígitos largos),
-      // antes = user (texto con paréntesis), antes = fecha
-      if (cols.length < 4) continue;
+      // Formato real Buzón Atlas (muchas columnas de denominaciones):
+      // Client(0) | Date(1) | vacío(2) | User(3) | Barcode(4) | TransType(5) | Amount(6) |
+      // 20(7) | 50(8) | ... | SerialNumber | DropIn | TotalValue | Description
+      // Mínimo necesitamos Date, User, TransType, Amount → al menos 7 cols
+      if (cols.length < 7) continue;
 
-      // Última columna: amount
-      const amountRaw = cols[cols.length - 1];
-      const valor = normVal(amountRaw);
-      if (isNaN(valor) || valor < 1000) continue;
-
-      // Ignorar la fila "Atlas Recaudo (atlas)" — son totales de bolsa
+      // Ignorar encabezado
+      if (cols[1] === 'Date' || cols[3] === 'User') continue;
+      // Ignorar totales "Atlas Recaudo"
       if (linea.toLowerCase().includes('atlas recaudo')) continue;
 
-      // Columna user: puede ser cols[2] (5 cols) o cols[1] (4 cols)
-      // La reconocemos porque contiene paréntesis con cédula
-      const userCol = cols.find(c => /\([VTvt]?\d{6,12}\)/.test(c)) || '';
+      // Transaction type debe ser "Deposit"
+      const transType = cols[5] || '';
+      if (!/deposit/i.test(transType)) continue;
 
-      // Extraer cédula: "(V1088308341)" o "(T1002576440)" o "(1004669887)"
+      // Fecha: cols[1] — formato "10/1/2026 08:14" (M/D/YYYY H:MM)
+      const fechaRaw = cols[1] || '';
+      // Extraer solo la parte de fecha sin hora
+      const fechaSolo = fechaRaw.split(' ')[0]; // "10/1/2026"
+
+      // Amount: cols[6] — formato "9.170.000,00"
+      const valorRaw = cols[6] || '';
+      const valor = normVal(valorRaw);
+      if (isNaN(valor) || valor < 1000) continue;
+
+      // User: cols[3] — "JOHN EDWAR ZAPATA ACEVEDO (V1088249115)"
+      const userCol = cols[3] || '';
       const cedulaMatch = userCol.match(/\([VTvt]?(\d{6,12})\)/);
       const cedula = cedulaMatch ? cedulaMatch[1] : null;
-
-      // Nombre limpio (sin la cédula)
       const nombreLimpio = userCol.replace(/\s*\([^)]+\)\s*$/, '').trim();
-
-      // Fecha: cols[0]
-      const fecha = cols[0] || '';
-
-      // Barcode: cols[cols.length-2]
-      const barcode = cols[cols.length - 2] || '';
 
       if (!cedula) continue; // sin cédula no podemos cruzar
 
-      filas.push({ fecha, cedula, nombre: nombreLimpio, barcode, valor, refDisplay: `${nombreLimpio} (${cedula})`, lineaOriginal: linea });
+      // Barcode: cols[4]
+      const barcode = cols[4] || '';
+
+      filas.push({
+        fecha: fechaSolo,
+        cedula,
+        nombre: nombreLimpio,
+        barcode,
+        valor,
+        refDisplay: `${nombreLimpio} (${cedula})`,
+      });
     }
 
-    if (filas.length === 0) { toast.error('No se encontraron filas con cédula válida. Verifica el formato Buzón Atlas.'); return; }
+    if (filas.length === 0) {
+      toast.error('No se encontraron depósitos con cédula válida. Verifica el formato Buzón Atlas.');
+      return;
+    }
 
     const res = filas.map(f => {
       const fechaDate = parseFecha(f.fecha);
@@ -608,10 +647,11 @@ const PanelBuzon = ({ consignaciones }) => {
     });
 
     setResultados(res);
-    const ok = res.filter(r => r.estado === 'ok').length;
+    const ok  = res.filter(r => r.estado === 'ok').length;
     const dif = res.filter(r => r.estado === 'valor_diferente').length;
-    const no = res.filter(r => r.estado === 'no_encontrado').length;
-    toast.success(`Buzón Atlas: ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    const no  = res.filter(r => r.estado === 'no_encontrado').length;
+    toast.success(`Buzón Atlas: ${res.length} depósitos · ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    onGuardar?.(res);
   }, [texto, indices]);
 
   return (
@@ -631,11 +671,16 @@ const PanelBuzon = ({ consignaciones }) => {
 
 // ════════════════════════════════════════════════════════════════════════════
 // PANEL ZENÚ SAP
-// Formato TSV: NRO DOC | REFERENCIA | TIPO | FECHA | VENCIMIENTO | DÍAS | VALOR | MONEDA
-// Solo se toman los "Recaudos en Bancos" (valores negativos = recaudos aplicados)
-// Cruce: Nro. Documento como numero_comprobante → valor + fecha
+//
+// Formato real del reporte SAP (8 columnas TSV):
+// Número de documento(0) | Referencia(1) | Tipo de documento(2) | Fecha creación(3) |
+// Vencimiento(4) | Días vencidos(5) | Valor(6) | Moneda(7)
+//
+// Solo se procesan filas tipo "Recaudos en Bancos"
+// Los valores son negativos en SAP — se toma el valor absoluto
+// Cruce: Número de documento como numero_comprobante en ConsigControl
 // ════════════════════════════════════════════════════════════════════════════
-const PanelZenu = ({ consignaciones }) => {
+const PanelZenu = ({ consignaciones, onGuardar }) => {
   const [texto, setTexto] = useState('');
   const [resultados, setResultados] = useState(null);
   const [filtro, setFiltro] = useState('todos');
@@ -652,53 +697,66 @@ const PanelZenu = ({ consignaciones }) => {
       const cols = linea.split('\t').map(c => c.trim());
       if (cols.length < 6) continue;
 
-      // Cols: NRO DOC | REFERENCIA | TIPO | FECHA | VENCIMIENTO | DÍAS | VALOR | MONEDA
-      const nroDoc    = cols[0];
-      const referencia = cols[1];
-      const tipo      = cols[2];
-      const fecha     = cols[3];
-      // Valor puede ser col 6 (8 cols) o col 5 (7 cols) — buscamos la col con $
-      const valorRaw  = cols.find(c => c.includes('$') || /^-?\$?[\d.,]+$/.test(c.replace(/\s/,''))) || cols[cols.length - 2];
+      // Ignorar encabezado
+      if (/número de documento|nro.*doc/i.test(cols[0])) continue;
+      // Ignorar fila de total (solo tiene valor al final)
+      if (!cols[0] || !/^\d/.test(cols[0])) continue;
+
+      const nroDoc  = cols[0].trim();           // "1600241444"
+      const tipo    = cols[2]?.trim() || '';    // " Recaudos en Bancos"
+      const fecha   = cols[3]?.trim() || '';    // "28/09/2026"
+      const valorRaw = cols[6]?.trim() || '';   // "-$2.000.000,00"
+
+      // Solo Recaudos en Bancos
+      if (!tipo.toLowerCase().includes('recaud')) continue;
 
       const valorBruto = normVal(valorRaw);
-      // En SAP los recaudos vienen como negativos (aplican contra facturas)
-      // Tomamos el valor absoluto para comparar contra lo registrado
       const valor = Math.abs(valorBruto);
       if (isNaN(valor) || valor < 1000) continue;
-
-      // Solo procesar Recaudos (ignorar Facturas y Notas Crédito)
-      if (!tipo.toLowerCase().includes('recaud')) continue;
 
       if (vistas.has(nroDoc)) continue;
       vistas.add(nroDoc);
 
       filas.push({
-        fecha, nroDoc, referencia, tipo, valor,
-        refDisplay: `${nroDoc} · ${referencia}`,
-        lineaOriginal: linea,
+        fecha,
+        numConsig: nroDoc,
+        nomase: '',
+        valor,
+        refDisplay: `${nroDoc} · Recaudo`,
+        descripcion: 'Recaudos en Bancos',
       });
     }
 
-    if (filas.length === 0) { toast.error('No se encontraron recaudos válidos. Verifica el formato Zenú SAP (solo filas "Recaudos en Bancos").'); return; }
+    if (filas.length === 0) {
+      toast.error('No se encontraron recaudos. Verifica que el reporte tenga filas tipo "Recaudos en Bancos".');
+      return;
+    }
 
     const res = filas.map(f => {
       const fechaDate = parseFecha(f.fecha);
-      // Nro. Documento SAP es el que los auxiliares registran como comprobante en la app
-      const cruce = cruzar({ comprobante: f.nroDoc, cedula: null, valor: f.valor, fechaDate }, indices);
-      return { ...f, ...cruce, comprobante: cruce.registro?.numero_comprobante || f.nroDoc || '—' };
+      const cruce = cruzar(
+        { comprobante: f.numConsig, cedula: null, valor: f.valor, fechaDate, permitirSoloValor: true },
+        indices
+      );
+      return {
+        ...f,
+        ...cruce,
+        comprobante: cruce.registro?.numero_comprobante || f.numConsig,
+      };
     });
 
     setResultados(res);
-    const ok = res.filter(r => r.estado === 'ok').length;
+    const ok  = res.filter(r => r.estado === 'ok').length;
     const dif = res.filter(r => r.estado === 'valor_diferente').length;
-    const no = res.filter(r => r.estado === 'no_encontrado').length;
-    toast.success(`Zenú SAP: ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    const no  = res.filter(r => r.estado === 'no_encontrado').length;
+    toast.success(`Zenú SAP: ${res.length} recaudos · ${ok} ✅ · ${dif} ⚠️ · ${no} ❌`);
+    onGuardar?.(res);
   }, [texto, indices]);
 
   return (
     <div>
       <textarea value={texto} onChange={e => setTexto(e.target.value)}
-        placeholder={'Pega el reporte de cartera Zenú SAP.\n\nFormato TSV esperado:\nNÚMERO DE DOCUMENTO\tREFERENCIA\tTIPO\tFECHA CREACIÓN\tVENCIMIENTO\tDÍAS VENCIDOS\tVALOR\tMONEDA\n\nSolo se procesan filas tipo "Recaudos en Bancos". Las facturas se ignoran.'}
+        placeholder={'Pega el reporte de cartera Zenú SAP.\n\nFormato TSV (8 columnas):\nNúmero de documento\tReferencia\tTipo de documento\tFecha creación\tVencimiento\tDías vencidos\tValor\tMoneda\n\nEjemplo:\n1600241444\t16-0186\t Recaudos en Bancos\t28/09/2026\t28/09/2026\t1\t-$2.000.000,00\tCOP\n\nSolo se procesan filas tipo "Recaudos en Bancos". Facturas y Notas Crédito se ignoran.'}
         style={{ width: '100%', minHeight: 160, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--text-1)', padding: '0.75rem', lineHeight: 1.6, boxSizing: 'border-box' }}
       />
       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -740,9 +798,47 @@ const ValidadorExtracto = ({ user, consignacionesAdmin }) => {
   const [consignacionesPropias, setConsignacionesPropias] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Historial
+  const [verHistorial, setVerHistorial] = useState(false);
+  const [historial, setHistorial] = useState([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [detalleAbierto, setDetalleAbierto] = useState(null); // id de la validación expandida
+  const [detalleData, setDetalleData] = useState(null);
+
   const consignaciones = (consignacionesAdmin && consignacionesAdmin.length > 0)
     ? consignacionesAdmin
     : consignacionesPropias;
+
+  // Función que los paneles llaman después de analizar
+  const guardarEnHistorial = useCallback(async (bancoPar, resultados) => {
+    if (!user || !resultados || resultados.length === 0) return;
+    const { error } = await historialDB.guardar({
+      adminId:             user.id,
+      adminName:           user.full_name,
+      banco:               bancoPar,
+      periodoDesdePeriodo: rangeActive.start,
+      periodoHasta:        rangeActive.end,
+      resultados,
+    });
+    if (!error) toast.success('✅ Validación guardada en historial');
+    else toast.error('No se pudo guardar en historial');
+  }, [user, rangeActive]);
+
+  const abrirHistorial = async () => {
+    setVerHistorial(true);
+    setLoadingHistorial(true);
+    const data = await historialDB.listar({ limit: 100 });
+    setHistorial(data);
+    setLoadingHistorial(false);
+  };
+
+  const abrirDetalle = async (id) => {
+    if (detalleAbierto === id) { setDetalleAbierto(null); setDetalleData(null); return; }
+    setDetalleAbierto(id);
+    setDetalleData(null);
+    const data = await historialDB.detalle(id);
+    setDetalleData(data);
+  };
 
   const cargar = useCallback(async (range) => {
     // Solo cargar si no tenemos datos del admin
@@ -817,6 +913,25 @@ const ValidadorExtracto = ({ user, consignacionesAdmin }) => {
               </button>
             );
           })}
+          {/* Atajo 2 meses — útil para Zenú que tiene recaudos de mes anterior */}
+          {(() => {
+            const now = new Date();
+            const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const y1 = prev.getFullYear();
+            const m1 = String(prev.getMonth() + 1).padStart(2, '0');
+            const y2 = now.getFullYear();
+            const m2 = String(now.getMonth() + 1).padStart(2, '0');
+            const days2 = new Date(y2, now.getMonth() + 1, 0).getDate();
+            const r = { start: `${y1}-${m1}-01`, end: `${y2}-${m2}-${days2}` };
+            const isActive = rangeActive.start === r.start && rangeActive.end === r.end;
+            return (
+              <button className="btn btn-ghost" onClick={() => { setRangeDraft(r); setRangeActive(r); cargar(r); }}
+                style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', ...(isActive ? { borderColor: 'var(--neon-purple)', color: 'var(--neon-purple)' } : {}), borderStyle: 'dashed' }}
+                title="Útil para Zenú: recaudos de mes anterior registrados este mes">
+                2 meses
+              </button>
+            );
+          })()}
         </div>
         {/* Info del rango activo */}
         <div style={{ marginTop: '0.6rem', fontSize: '0.72rem', color: 'var(--text-3)', display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -829,28 +944,161 @@ const ValidadorExtracto = ({ user, consignacionesAdmin }) => {
         </div>
       </div>
 
-      {/* ── Sub-pestañas por banco ─────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+      {/* ── Sub-pestañas por banco + botón historial ──────────────────── */}
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', alignItems: 'center' }}>
         {BANCOS.map(b => (
-          <button key={b.id} onClick={() => setBanco(b.id)} style={{
+          <button key={b.id} onClick={() => { setBanco(b.id); setVerHistorial(false); }} style={{
             padding: '0.45rem 1.1rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.82rem',
             cursor: 'pointer', border: 'none',
-            background: banco === b.id ? b.color : 'rgba(255,255,255,0.05)',
-            color: banco === b.id ? '#000' : 'var(--text-2)',
+            background: banco === b.id && !verHistorial ? b.color : 'rgba(255,255,255,0.05)',
+            color: banco === b.id && !verHistorial ? '#000' : 'var(--text-2)',
             transition: 'all 0.2s',
           }}>
             {b.label}
           </button>
         ))}
+        <button
+          onClick={() => verHistorial ? setVerHistorial(false) : abrirHistorial()}
+          style={{
+            marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.45rem 1rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.78rem',
+            cursor: 'pointer', border: '1px solid',
+            borderColor: verHistorial ? 'var(--neon-purple)' : 'var(--border)',
+            background: verHistorial ? 'rgba(155,92,255,0.15)' : 'transparent',
+            color: verHistorial ? 'var(--neon-purple)' : 'var(--text-3)',
+          }}
+        >
+          <History size={14} /> Historial
+        </button>
       </div>
 
+      {/* ── Vista historial ───────────────────────────────────────────── */}
+      {verHistorial && (
+        <div className="animate-in">
+          {loadingHistorial ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}><div className="spinner" /></div>
+          ) : historial.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-3)' }}>
+              No hay validaciones guardadas aún.
+            </div>
+          ) : (
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)' }}>
+                    {['Fecha', 'Admin', 'Banco', 'Período', '✅', '⚠️', '❌', 'Total', ''].map(h => (
+                      <th key={h} style={{ padding: '0.65rem', textAlign: 'left', fontWeight: 800, fontSize: '0.64rem', textTransform: 'uppercase', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {historial.map((h, i) => (
+                    <>
+                      <tr key={h.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: i % 2 ? 'rgba(255,255,255,0.015)' : 'transparent', cursor: 'pointer' }}
+                        onClick={() => abrirDetalle(h.id)}>
+                        <td style={{ padding: '0.55rem 0.65rem', color: 'var(--text-3)', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                          {new Date(h.created_at).toLocaleString('es-CO', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.65rem', fontWeight: 600 }}>{h.admin_name}</td>
+                        <td style={{ padding: '0.55rem 0.65rem' }}>{h.banco}</td>
+                        <td style={{ padding: '0.55rem 0.65rem', fontSize: '0.7rem', color: 'var(--text-3)' }}>
+                          {h.periodo_desde} → {h.periodo_hasta}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.65rem', color: 'var(--neon-green)', fontWeight: 700 }}>{h.total_coinciden}</td>
+                        <td style={{ padding: '0.55rem 0.65rem', color: 'var(--neon-yellow)', fontWeight: 700 }}>{h.total_revisar}</td>
+                        <td style={{ padding: '0.55rem 0.65rem', color: 'var(--neon-red)', fontWeight: 700 }}>{h.total_no_encontrados}</td>
+                        <td style={{ padding: '0.55rem 0.65rem', fontWeight: 700 }}>
+                          {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(h.suma_total)}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.65rem' }}>
+                          {detalleAbierto === h.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </td>
+                      </tr>
+                      {detalleAbierto === h.id && (
+                        <tr key={`${h.id}-det`}>
+                          <td colSpan={9} style={{ padding: '0.75rem 1rem', background: 'rgba(155,92,255,0.06)', borderBottom: '1px solid var(--border)' }}>
+                            {!detalleData ? (
+                              <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                            ) : (
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--neon-purple)' }}>
+                                    {detalleData.detalle?.length} movimientos — {h.banco} — {h.periodo_desde} → {h.periodo_hasta}
+                                  </span>
+                                  <button className="btn btn-ghost" style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem' }}
+                                    onClick={() => {
+                                      // Exportar detalle a Excel
+                                      const XLSX = window.__XLSX__;
+                                      const filas = (detalleData.detalle || []).map(r => ({
+                                        Fecha: r.f, Descripcion: r.d, Valor: r.v,
+                                        Estado: r.e === 1 ? 'COINCIDE' : r.e === 2 ? 'REVISAR' : 'NO ENCONTRADO',
+                                        Valor_Registrado: r.vr ?? '', Diferencia: r.dif ?? '',
+                                        Auxiliar: r.aux ?? '', Banco_App: r.bco ?? '',
+                                        Metodo: r.m ?? '', Comprobante: r.comp ?? '',
+                                      }));
+                                      import('xlsx').then(({ default: XLSXmod, utils, writeFile }) => {
+                                        const ws = utils.json_to_sheet(filas);
+                                        const wb = utils.book_new();
+                                        utils.book_append_sheet(wb, ws, h.banco);
+                                        writeFile(wb, `Historial_${h.banco}_${h.periodo_desde}.xlsx`);
+                                      });
+                                    }}>
+                                    <Download size={12} /> Exportar
+                                  </button>
+                                </div>
+                                <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+                                    <thead>
+                                      <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                                        {['Estado', 'Fecha', 'Descripción', 'Valor', 'Valor App', 'Diferencia', 'Auxiliar', 'Banco App'].map(col => (
+                                          <th key={col} style={{ padding: '0.4rem 0.5rem', textAlign: 'left', color: 'var(--text-3)', fontSize: '0.62rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{col}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(detalleData.detalle || []).map((r, idx) => {
+                                        const col = r.e === 1 ? 'var(--neon-green)' : r.e === 2 ? 'var(--neon-yellow)' : 'var(--neon-red)';
+                                        const lbl = r.e === 1 ? '✅' : r.e === 2 ? '⚠️' : '❌';
+                                        const fmt = n => n != null ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(n) : '—';
+                                        return (
+                                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                            <td style={{ padding: '0.35rem 0.5rem', color: col, fontWeight: 700 }}>{lbl}</td>
+                                            <td style={{ padding: '0.35rem 0.5rem', color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{r.f}</td>
+                                            <td style={{ padding: '0.35rem 0.5rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.d}>{r.d}</td>
+                                            <td style={{ padding: '0.35rem 0.5rem', whiteSpace: 'nowrap', fontWeight: 700 }}>{fmt(r.v)}</td>
+                                            <td style={{ padding: '0.35rem 0.5rem', whiteSpace: 'nowrap', color: r.e === 1 ? 'var(--neon-green)' : 'var(--text-3)' }}>{fmt(r.vr)}</td>
+                                            <td style={{ padding: '0.35rem 0.5rem', whiteSpace: 'nowrap', color: r.dif > 0 ? 'var(--neon-yellow)' : 'var(--text-3)' }}>{r.dif ? fmt(r.dif) : '—'}</td>
+                                            <td style={{ padding: '0.35rem 0.5rem', whiteSpace: 'nowrap', fontSize: '0.68rem' }}>{r.aux || '—'}</td>
+                                            <td style={{ padding: '0.35rem 0.5rem', whiteSpace: 'nowrap', fontSize: '0.68rem' }}>{r.bco || '—'}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Panel activo ──────────────────────────────────────────────── */}
+      {!verHistorial && (
       <div className="card" style={{ padding: '1.25rem' }}>
-        {banco === 'bancolombia' && <PanelBancolombia consignaciones={consignaciones} />}
-        {banco === 'davivienda'  && <PanelDavivienda  consignaciones={consignaciones} />}
-        {banco === 'buzon'       && <PanelBuzon       consignaciones={consignaciones} />}
-        {banco === 'zenu'        && <PanelZenu        consignaciones={consignaciones} />}
+        {banco === 'bancolombia' && <PanelBancolombia consignaciones={consignaciones} onGuardar={(r) => guardarEnHistorial('Bancolombia', r)} />}
+        {banco === 'davivienda'  && <PanelDavivienda  consignaciones={consignaciones} onGuardar={(r) => guardarEnHistorial('Davivienda', r)} />}
+        {banco === 'buzon'       && <PanelBuzon       consignaciones={consignaciones} onGuardar={(r) => guardarEnHistorial('Buzon_Atlas', r)} />}
+        {banco === 'zenu'        && <PanelZenu        consignaciones={consignaciones} onGuardar={(r) => guardarEnHistorial('Zenu_SAP', r)} />}
       </div>
+      )}
     </div>
   );
 };
